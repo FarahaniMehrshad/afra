@@ -1,0 +1,14 @@
+# Compose file for one-command local runs:
+#   docker compose up --build
+#
+# Static prod build served by nginx on http://localhost:8080
+services:
+  afra:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: afra-diff-analyzer:latest
+    container_name: afra
+    ports:
+      - "8080:80"
+    restart: unless-stopped
