@@ -1,0 +1,54 @@
+{
+  "requestId": "ffdd888783d444cd",
+  "timestamp": "2026-08-10T18:00:44.346Z",
+  "finishReason": "stop",
+  "parsed": true,
+  "parsedShape": "results-array",
+  "returnedCount": 59,
+  "missingCount": 1,
+  "missingSamples": [
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ExecutionCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.MethodCommand:1/Parameters/$values/#8a3577d5-0bed-4e4c-9f60-08d4a7914777/Columns/$values/#995b797e-94b3-11f1-9001-005056c00008/FieldType/BaseDataType/ColumnType/$value"
+  ],
+  "droppedUnknownPath": 1,
+  "droppedBadRow": 0,
+  "inventedSamples": [
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ExecutionCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:1/Parameters/$values/#8a3577d5-0bed-4e4c-9f60-08d4a7914777/Columns/$values/#995b797e-94b3-11f1-9001-005056c00008/FieldType/BaseDataType/ColumnType/$value"
+  ],
+  "chunkId": "exe-1",
+  "variant": "exe",
+  "sent": 60,
+  "sentSamples": [
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ExecutionCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.MethodCommand:1/PackageId",
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ExecutionCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.MethodCommand:1/Parameters/$values/#8a3577d5-0bed-4e4c-9f60-08d4a7914777/AddDataByService",
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ExecutionCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.MethodCommand:1/Parameters/$values/#8a3577d5-0bed-4e4c-9f60-08d4a7914777/Columns/$values/#8adc0b0c-94b3-11f1-9001-005056c00008/FieldType/BaseDataType/Length",
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ExecutionCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.MethodCommand:1/Parameters/$values/#8a3577d5-0bed-4e4c-9f60-08d4a7914777/Columns/$values/#8adc0b0c-94b3-11f1-9001-005056c00008/OutputTitle",
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ExecutionCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.MethodCommand:1/Parameters/$values/#8a3577d5-0bed-4e4c-9f60-08d4a7914777/Columns/$values/#91d33040-94b3-11f1-9001-005056c00008/FieldType/BaseDataType/ColumnType/$value",
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ExecutionCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.MethodCommand:1/Parameters/$values/#8a3577d5-0bed-4e4c-9f60-08d4a7914777/Columns/$values/#91d33040-94b3-11f1-9001-005056c00008/FieldType/BaseDataType/HasLength",
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ExecutionCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.MethodCommand:1/Parameters/$values/#8a3577d5-0bed-4e4c-9f60-08d4a7914777/Columns/$values/#91d33040-94b3-11f1-9001-005056c00008/FieldType/BaseDataType/HasScale",
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ExecutionCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.MethodCommand:1/Parameters/$values/#8a3577d5-0bed-4e4c-9f60-08d4a7914777/Columns/$values/#91d33040-94b3-11f1-9001-005056c00008/FieldType/BaseDataType/Length"
+  ],
+  "rawLength": 30616,
+  "usage": {
+    "completion_tokens": 11580,
+    "prompt_tokens": 23203,
+    "total_tokens": 34783,
+    "completion_tokens_details": {
+      "audio_tokens": 0,
+      "reasoning_tokens": 0,
+      "image_tokens": 0
+    },
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost": 0.243309,
+    "is_byok": false,
+    "cost_details": {
+      "upstream_inference_cost": 0.243309,
+      "upstream_inference_prompt_cost": 0.069609,
+      "upstream_inference_completions_cost": 0.1737
+    }
+  }
+}

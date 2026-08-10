@@ -59,9 +59,15 @@ function entriesFor(
   const values = mergedValues(build.merged);
   const out: LlmPathEntry[] = [];
 
+  let skippedAllNoise = 0;
+  const skippedNoiseSamples: string[] = [];
   for (const [path, evs] of build.hist) {
     const kept = opts.hideNoise ? evs.filter((e) => !e.noise) : evs;
-    if (!kept.length) continue;
+    if (!kept.length) {
+      skippedAllNoise++;
+      if (skippedNoiseSamples.length < 8) skippedNoiseSamples.push(path);
+      continue;
+    }
 
     const events: LlmEvent[] = kept.map((e) => {
       const step = bundle.steps[e.i];
@@ -82,6 +88,9 @@ function entriesFor(
       events,
     });
   }
+  // #region agent log
+  fetch('http://127.0.0.1:7369/ingest/d7782203-d7ad-44af-a3e4-ad5fc56ff0b3',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'53c723'},body:JSON.stringify({sessionId:'53c723',runId:'pre-fix',hypothesisId:'A',location:'llm.payload.ts:entriesFor',message:'payload path selection',data:{hideNoise:opts.hideNoise,histSize:build.hist.size,sent:out.length,skippedAllNoise,skippedNoiseSamples},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
 
   // Sorted so sibling keys land in the same batch — neighbouring paths are the
   // context that lets the model spot "this one is derived from that one".

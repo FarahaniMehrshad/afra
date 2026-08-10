@@ -1,0 +1,50 @@
+{
+  "requestId": "e4b68e2a8303fc78",
+  "timestamp": "2026-08-10T18:02:31.967Z",
+  "finishReason": "stop",
+  "parsed": true,
+  "parsedShape": "results-array",
+  "returnedCount": 60,
+  "missingCount": 0,
+  "missingSamples": [],
+  "droppedUnknownPath": 0,
+  "droppedBadRow": 0,
+  "inventedSamples": [],
+  "chunkId": "exe-6",
+  "variant": "exe",
+  "sent": 60,
+  "sentSamples": [
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ValidationCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.MethodCommand:1/Parameters/$values/#8a3577d5-0bed-4e4c-9f60-08d4a7914777/Columns/$values/#995b797e-94b3-11f1-9001-005056c00008/TrimType/$type",
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ValidationCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.MethodCommand:1/Parameters/$values/#8a3577d5-0bed-4e4c-9f60-08d4a7914777/Columns/$values/#995b797e-94b3-11f1-9001-005056c00008/TrimType/Name",
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ValidationCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.MethodCommand:1/Parameters/$values/#8a3577d5-0bed-4e4c-9f60-08d4a7914777/Columns/$values/#995b797e-94b3-11f1-9001-005056c00008/TrimType/Name/$type",
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ValidationCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.MethodCommand:1/Parameters/$values/#8a3577d5-0bed-4e4c-9f60-08d4a7914777/Columns/$values/#995b797e-94b3-11f1-9001-005056c00008/TrimType/Name/$value",
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ValidationCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.MethodCommand:1/Parameters/$values/#8a3577d5-0bed-4e4c-9f60-08d4a7914777/Columns/$values/#995b797e-94b3-11f1-9001-005056c00008/TrimType/Title",
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ValidationCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.MethodCommand:1/Parameters/$values/#8a3577d5-0bed-4e4c-9f60-08d4a7914777/Columns/$values/#995b797e-94b3-11f1-9001-005056c00008/UseDefaultFormat",
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ValidationCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.MethodCommand:1/Parameters/$values/#8a3577d5-0bed-4e4c-9f60-08d4a7914777/Columns/$values/#995b7983-94b3-11f1-9001-005056c00008/$type",
+    "/PluginCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.PluginCommand:0/ValidationCommands/$values/@MicroService.DIP.ScenarioDesignerContract.DataContracts.MethodCommand:1/Parameters/$values/#8a3577d5-0bed-4e4c-9f60-08d4a7914777/Columns/$values/#995b7983-94b3-11f1-9001-005056c00008/CalendarType"
+  ],
+  "rawLength": 29745,
+  "usage": {
+    "completion_tokens": 11062,
+    "prompt_tokens": 17049,
+    "total_tokens": 28111,
+    "completion_tokens_details": {
+      "audio_tokens": 0,
+      "reasoning_tokens": 0,
+      "image_tokens": 0
+    },
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost": 0.217077,
+    "is_byok": false,
+    "cost_details": {
+      "upstream_inference_cost": 0.217077,
+      "upstream_inference_prompt_cost": 0.051147,
+      "upstream_inference_completions_cost": 0.16593
+    }
+  }
+}

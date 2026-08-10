@@ -1,0 +1,50 @@
+{
+  "requestId": "daf80e2c7f511cfa",
+  "timestamp": "2026-08-10T17:58:50.714Z",
+  "finishReason": "stop",
+  "parsed": true,
+  "parsedShape": "results-array",
+  "returnedCount": 60,
+  "missingCount": 0,
+  "missingSamples": [],
+  "droppedUnknownPath": 0,
+  "droppedBadRow": 0,
+  "inventedSamples": [],
+  "chunkId": "wpf-1",
+  "variant": "wpf",
+  "sent": 60,
+  "sentSamples": [
+    "/BoardModel/Links/$values/#91d33037-94b3-11f1-9001-005056c00008/Map/$values/#91d3303d-94b3-11f1-9001-005056c00008/Source/Fields/$values/#91d3303a-94b3-11f1-9001-005056c00008/Name/Length",
+    "/BoardModel/Links/$values/#91d33037-94b3-11f1-9001-005056c00008/Map/$values/#91d3303d-94b3-11f1-9001-005056c00008/Source/Fields/$values/#91d3303a-94b3-11f1-9001-005056c00008/Title",
+    "/BoardModel/Links/$values/#91d33037-94b3-11f1-9001-005056c00008/Map/$values/#91d3303d-94b3-11f1-9001-005056c00008/Source/Fields/$values/#995b797d-94b3-11f1-9001-005056c00008/Name/ColumnType/$value",
+    "/BoardModel/Links/$values/#91d33037-94b3-11f1-9001-005056c00008/Map/$values/#91d3303d-94b3-11f1-9001-005056c00008/Source/Fields/$values/#995b797d-94b3-11f1-9001-005056c00008/Name/HasLength",
+    "/BoardModel/Links/$values/#91d33037-94b3-11f1-9001-005056c00008/Map/$values/#91d3303d-94b3-11f1-9001-005056c00008/Source/Fields/$values/#995b797d-94b3-11f1-9001-005056c00008/Name/HasScale",
+    "/BoardModel/Links/$values/#91d33037-94b3-11f1-9001-005056c00008/Map/$values/#91d3303d-94b3-11f1-9001-005056c00008/Source/Fields/$values/#995b797d-94b3-11f1-9001-005056c00008/Name/Length",
+    "/BoardModel/Links/$values/#91d33037-94b3-11f1-9001-005056c00008/Map/$values/#91d3303d-94b3-11f1-9001-005056c00008/Source/Fields/$values/#995b797d-94b3-11f1-9001-005056c00008/Name/Scale",
+    "/BoardModel/Links/$values/#91d33037-94b3-11f1-9001-005056c00008/Map/$values/#91d3303d-94b3-11f1-9001-005056c00008/Source/Fields/$values/#995b7982-94b3-11f1-9001-005056c00008/$type"
+  ],
+  "rawLength": 22694,
+  "usage": {
+    "completion_tokens": 8708,
+    "prompt_tokens": 19542,
+    "total_tokens": 28250,
+    "completion_tokens_details": {
+      "audio_tokens": 0,
+      "reasoning_tokens": 0,
+      "image_tokens": 0
+    },
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost": 0.189246,
+    "is_byok": false,
+    "cost_details": {
+      "upstream_inference_cost": 0.189246,
+      "upstream_inference_prompt_cost": 0.058626,
+      "upstream_inference_completions_cost": 0.13062
+    }
+  }
+}

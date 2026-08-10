@@ -1,0 +1,50 @@
+{
+  "requestId": "761b724f309803ed",
+  "timestamp": "2026-08-10T17:59:16.211Z",
+  "finishReason": "stop",
+  "parsed": true,
+  "parsedShape": "results-array",
+  "returnedCount": 27,
+  "missingCount": 0,
+  "missingSamples": [],
+  "droppedUnknownPath": 0,
+  "droppedBadRow": 0,
+  "inventedSamples": [],
+  "chunkId": "wpf-6",
+  "variant": "wpf",
+  "sent": 27,
+  "sentSamples": [
+    "/BoardModel/Plugins/$values/#91d33030-94b3-11f1-9001-005056c00008/InputFields/$values/#995b7982-94b3-11f1-9001-005056c00008/Title",
+    "/BoardModel/Plugins/$values/#91d33030-94b3-11f1-9001-005056c00008/InputFields/$values/#a0d998d6-94b3-11f1-9001-005056c00008/$type",
+    "/BoardModel/Plugins/$values/#91d33030-94b3-11f1-9001-005056c00008/InputFields/$values/#a0d998d6-94b3-11f1-9001-005056c00008/BaseDataType",
+    "/BoardModel/Plugins/$values/#91d33030-94b3-11f1-9001-005056c00008/InputFields/$values/#a0d998d6-94b3-11f1-9001-005056c00008/BaseDataType/$type",
+    "/BoardModel/Plugins/$values/#91d33030-94b3-11f1-9001-005056c00008/InputFields/$values/#a0d998d6-94b3-11f1-9001-005056c00008/BaseDataType/ColumnType",
+    "/BoardModel/Plugins/$values/#91d33030-94b3-11f1-9001-005056c00008/InputFields/$values/#a0d998d6-94b3-11f1-9001-005056c00008/BaseDataType/ColumnType/$type",
+    "/BoardModel/Plugins/$values/#91d33030-94b3-11f1-9001-005056c00008/InputFields/$values/#a0d998d6-94b3-11f1-9001-005056c00008/BaseDataType/ColumnType/$value",
+    "/BoardModel/Plugins/$values/#91d33030-94b3-11f1-9001-005056c00008/InputFields/$values/#a0d998d6-94b3-11f1-9001-005056c00008/BaseDataType/HasLength"
+  ],
+  "rawLength": 8493,
+  "usage": {
+    "completion_tokens": 3124,
+    "prompt_tokens": 6449,
+    "total_tokens": 9573,
+    "completion_tokens_details": {
+      "audio_tokens": 0,
+      "reasoning_tokens": 0,
+      "image_tokens": 0
+    },
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost": 0.066207,
+    "is_byok": false,
+    "cost_details": {
+      "upstream_inference_cost": 0.066207,
+      "upstream_inference_prompt_cost": 0.019347,
+      "upstream_inference_completions_cost": 0.04686
+    }
+  }
+}

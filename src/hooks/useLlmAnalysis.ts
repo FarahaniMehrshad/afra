@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAppStore } from '@/store/appStore';
-import { useLlmStore } from '@/store/llmStore';
+import { useLlmStore, verdictKey } from '@/store/llmStore';
 import { getBuild } from './useBuild';
 import { buildLlmPayload, chunkPayload } from '@/services/llm.payload';
 import { renderChunk } from '@/services/llm.prompt';
@@ -15,6 +15,24 @@ import type { LlmChunkTrace } from '@/types/llm';
 
 const CONCURRENCY = 3;
 const DEFAULT_BATCH = 60;
+
+/**
+ * Drops the verdicts when a different journey is loaded. Mounted once at the
+ * app level rather than alongside the LLM controls, because the results are
+ * read by pages that never render those controls — leave it to whoever is
+ * showing a button and a folder swapped in from the Ingest page keeps a stale
+ * classification alive.
+ */
+export function useVerdictInvalidation(): void {
+  const bundle = useAppStore((s) => s.bundle);
+  const reset = useLlmStore((s) => s.reset);
+
+  useEffect(() => {
+    // Guarded on identity: this must survive ordinary re-renders, a finished
+    // run should not be thrown away just because a page remounted.
+    if (useLlmStore.getState().forBundle !== bundle) reset(bundle);
+  }, [bundle, reset]);
+}
 
 export function useLlmAnalysis() {
   const bundle = useAppStore((s) => s.bundle);
@@ -33,7 +51,6 @@ export function useLlmAnalysis() {
   const patchTrace = useLlmStore((s) => s.patchTrace);
   const addVerdicts = useLlmStore((s) => s.addVerdicts);
   const finishRun = useLlmStore((s) => s.finishRun);
-  const reset = useLlmStore((s) => s.reset);
   const setDebugOpen = useLlmStore((s) => s.setDebugOpen);
 
   const abortRef = useRef<AbortController | null>(null);
@@ -48,13 +65,6 @@ export function useLlmAnalysis() {
       live = false;
     };
   }, [healthChecked, setHealth]);
-
-  // Verdicts belong to one journey; a new folder invalidates all of them.
-  // Guarded on identity because this hook remounts every time the user leaves
-  // the Total-diff page, and a finished run should survive that.
-  useEffect(() => {
-    if (useLlmStore.getState().forBundle !== bundle) reset(bundle);
-  }, [bundle, reset]);
 
   const batch = health?.pathsPerBatch ?? DEFAULT_BATCH;
   const signature = (bundle?.name ?? '') + '|' + hideNoise + '|' + batch;
@@ -137,6 +147,17 @@ export function useLlmAnalysis() {
             error: msg,
             ms: Math.round(performance.now() - t0),
           });
+          // Still mark every path in the failed batch so the gutter does not
+          // quietly leave those rows blank next to their change chips.
+          addVerdicts(
+            t.chunk.entries.map((entry) => ({
+              variant: t.chunk.variant,
+              path: entry.path,
+              category: 'unknown' as const,
+              confidence: 0,
+              reason: 'Batch failed: ' + msg,
+            })),
+          );
         }
       }
     };
@@ -144,6 +165,18 @@ export function useLlmAnalysis() {
     await Promise.all(Array.from({ length: CONCURRENCY }, worker));
     abortRef.current = null;
     finishRun(ctrl.signal.aborted ? undefined : firstError || undefined);
+    // #region agent log
+    {
+      const st = useLlmStore.getState();
+      const sentPaths = st.traces.flatMap((t) =>
+        t.chunk.entries.map((e) => ({ variant: t.chunk.variant, path: e.path, status: t.status })),
+      );
+      const missing = sentPaths.filter(
+        (p) => !st.verdicts.has(verdictKey(p.variant, p.path)),
+      );
+      fetch('http://127.0.0.1:7369/ingest/d7782203-d7ad-44af-a3e4-ad5fc56ff0b3',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'53c723'},body:JSON.stringify({sessionId:'53c723',runId:'post-fix',hypothesisId:'B',location:'useLlmAnalysis.ts:run',message:'run finished coverage',data:{status:st.status,error:st.error||firstError||'',traceStatuses:st.traces.map((t)=>({id:t.chunk.id,status:t.status,error:t.error,entries:t.chunk.entries.length})),sent:sentPaths.length,verdicts:st.verdicts.size,missingCount:missing.length,missingByStatus:missing.reduce((m,p)=>{m[p.status]=(m[p.status]||0)+1;return m;},{} as Record<string,number>),missingSamples:missing.slice(0,12)},timestamp:Date.now()})}).catch(()=>{});
+    }
+    // #endregion
   }, [prepare, startRun, patchTrace, addVerdicts, finishRun]);
 
   const openDebug = useCallback(() => {

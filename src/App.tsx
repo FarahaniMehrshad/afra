@@ -4,6 +4,8 @@ import { Scrubber } from './components/layout/Scrubber';
 import { IngestPage } from './components/ingest/IngestPage';
 import { StepsPage } from './components/steps/StepsPage';
 import { TotalPage } from './components/total/TotalPage';
+import { SchemaPage } from './components/schema/SchemaPage';
+import { useVerdictInvalidation } from './hooks/useLlmAnalysis';
 
 /**
  * The chrome. Everything about *what* to show lives in feature pages;
@@ -12,6 +14,8 @@ import { TotalPage } from './components/total/TotalPage';
 export default function App() {
   const page = useAppStore((s) => s.page);
   const loaded = useAppStore((s) => s.bundle !== null);
+
+  useVerdictInvalidation();
 
   return (
     <div
@@ -38,7 +42,8 @@ export default function App() {
       />
 
       <Header />
-      {loaded && page !== 'ingest' && <Scrubber />}
+      {/* The scrubber is a per-step control; the JSON-to-YML page has no steps. */}
+      {loaded && page !== 'ingest' && page !== 'schema' && <Scrubber />}
 
       <main
         style={{
@@ -53,6 +58,7 @@ export default function App() {
         {page === 'ingest' && <IngestPage />}
         {page === 'steps' && loaded && <StepsPage />}
         {page === 'total' && loaded && <TotalPage />}
+        {page === 'schema' && loaded && <SchemaPage />}
       </main>
     </div>
   );

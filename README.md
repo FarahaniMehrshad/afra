@@ -14,6 +14,10 @@ Three views:
 - **Total diff.** The merged configuration across every step, with per-key
   history: click any line to see exactly which step added / modified /
   removed it and what the value became.
+- **JSON to YML.** A compact YAML of just the fields a UI operation drove,
+  unified across `wpf` and `exe`, with a panel mapping any line back to the
+  real paths behind it and an editable converter you can take away (see
+  below).
 
 Exports available from the header: `merged.json` for the union of every
 step, and `report.md` for a human-readable change log.
@@ -47,6 +51,43 @@ Requests go to `/api/llm/*` on the app's own origin — Vite middleware in dev,
 CORS to negotiate. Without a key the button is simply disabled; every other
 feature works offline as before.
 
+## JSON to YML
+
+Once the analysis has run, **JSON to YML** distils its `step-operation`
+verdicts into the smallest YAML that still describes what the UI actually
+writes — constants, ids and timestamps are all left out.
+
+It works by collapsing every path to a *canonical* one, replacing array item
+keys with `[]`: `/Devices/#dev-pump/Name` and `/Devices/0/Name` both become
+`/Devices/[]/Name`. That folds each array onto a single representative element
+and lets `wpf` and `exe` share one tree even though the exe exporter mints new
+array ids on every write. Lines are tagged in the gutter with the variants they
+came from, and clicking one expands it back into the real paths, each with the
+model's reason and the steps that changed it.
+
+Two documents come out of the same tree, differing only in how arrays are
+handled. `afra-ui-fields.sample.yml` fills every array in with one worked
+element; `afra-ui-fields.empty.yml` empties only the arrays that directly hold
+plain values, since those elements are sample data and nothing else. Arrays of
+objects keep their element in both, because the UI fields live inside it and
+emptying one would drop them from the document. Generation is a pure
+function of the verdicts and the two builds, so the same run always produces
+byte-identical output.
+
+### The converter
+
+**converter.js** in the toolbar opens the conversion as code: a self-contained
+JavaScript file with the discovered field list baked in at the top, which turns
+any raw `wpf`/`exe` configuration into the same YAML. It runs as you type
+against a configuration you pick, so editing the field list — or the quoting,
+or the indentation — shows its effect immediately, and **download .js** takes
+the result away to run under plain `require`.
+
+One deliberate difference from the page: the page collapses every array onto a
+single representative element because it is describing a shape, whereas the
+converter handed a real configuration keeps every element because it is
+describing that configuration.
+
 ## Project structure
 
 ```
@@ -65,7 +106,8 @@ src/
 │   ├── journey.ts
 │   ├── ir.ts
 │   ├── diff.ts
-│   └── llm.ts
+│   ├── llm.ts
+│   └── schema.ts
 │
 ├── services/               # pure, testable business logic
 │   ├── ir.service.ts       # JSON → IR, merge, flatten, emit
@@ -79,6 +121,10 @@ src/
 │   ├── llm.payload.ts      # changed paths + history → batches
 │   ├── llm.prompt.ts       # batch → system / user messages
 │   ├── llm.service.ts      # /api/llm transport + reply parsing
+│   ├── schema.service.ts   # verdicts + builds → canonical UI-field tree
+│   ├── yaml.service.ts     # tree → YAML lines carrying their canonical path
+│   ├── converter.codegen.ts# tree → standalone JS converter source
+│   ├── converter.runtime.ts# compiles and runs the edited converter
 │   └── download.util.ts
 │
 ├── store/
@@ -91,7 +137,8 @@ src/
 │   ├── useExport.ts
 │   ├── useIngest.ts
 │   ├── useLlmAnalysis.ts
-│   └── useRecents.ts
+│   ├── useRecents.ts
+│   └── useSchema.ts
 │
 └── components/             # feature-scoped, presentational
     ├── layout/     Header, Nav, Scrubber
@@ -99,6 +146,8 @@ src/
     ├── steps/      StepsPage, StepNav, DiffToolbar, SplitDiff, InlineDiff
     ├── total/      TotalPage, TotalToolbar, MergedList, HistoryPanel,
     │               LlmControls, LlmDebugPanel
+    ├── schema/     SchemaPage, SchemaToolbar, YamlList, MappingPanel,
+    │               ConverterPanel, NeedsAnalysis
     └── ui/         Segmented, Toggle, IconButton
 ```
 

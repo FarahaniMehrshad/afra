@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useAppStore } from '@/store/appStore';
-import { useLlmStore } from '@/store/llmStore';
+import { useLlmStore, verdictKey } from '@/store/llmStore';
 import { useBuild } from '@/hooks/useBuild';
 import { ROW_HEIGHT } from '@/constants';
 import { TotalToolbar } from './TotalToolbar';
@@ -83,6 +83,27 @@ export function TotalPage() {
       ? build.mergedLines.length + ' lines'
       : shown.length + ' of ' + build.mergedLines.length + ' lines'
     : '';
+
+  // #region agent log
+  useMemo(() => {
+    if (!build || !verdicts.size) return null;
+    const chipNoBadge: { path: string; events: number; inHist: boolean; inVerdicts: boolean }[] = [];
+    for (const x of shown) {
+      if (!x.evs.length) continue;
+      const has = verdicts.has(verdictKey(variant, x.l.path));
+      if (!has) {
+        chipNoBadge.push({
+          path: x.l.path,
+          events: x.evs.length,
+          inHist: build.hist.has(x.l.path),
+          inVerdicts: false,
+        });
+      }
+    }
+    fetch('http://127.0.0.1:7369/ingest/d7782203-d7ad-44af-a3e4-ad5fc56ff0b3',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'53c723'},body:JSON.stringify({sessionId:'53c723',runId:'post-fix',hypothesisId:'D',location:'TotalPage.tsx:shown',message:'chip-no-badge rows',data:{variant,hideNoise,verdicts:verdicts.size,shown:shown.length,chipRows:shown.filter((x)=>x.evs.length).length,chipNoBadgeCount:chipNoBadge.length,chipNoBadgeSamples:chipNoBadge.slice(0,20),unknownBadges:[...verdicts.values()].filter((v)=>v.category==='unknown'&&v.variant===variant).length,closerLike:chipNoBadge.filter((r)=>r.path.endsWith('}')||r.path==='').length},timestamp:Date.now()})}).catch(()=>{});
+    return chipNoBadge.length;
+  }, [build, shown, verdicts, variant, hideNoise]);
+  // #endregion
 
   if (!bundle) return null;
 

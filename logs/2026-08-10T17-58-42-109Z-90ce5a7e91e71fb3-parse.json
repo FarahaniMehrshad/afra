@@ -1,0 +1,50 @@
+{
+  "requestId": "90ce5a7e91e71fb3",
+  "timestamp": "2026-08-10T17:58:42.109Z",
+  "finishReason": "stop",
+  "parsed": true,
+  "parsedShape": "results-array",
+  "returnedCount": 60,
+  "missingCount": 0,
+  "missingSamples": [],
+  "droppedUnknownPath": 0,
+  "droppedBadRow": 0,
+  "inventedSamples": [],
+  "chunkId": "wpf-2",
+  "variant": "wpf",
+  "sent": 60,
+  "sentSamples": [
+    "/BoardModel/Plugins/$values/#8adc0b07-94b3-11f1-9001-005056c00008/TableCreatorParameter/Columns/$values/#91d33040-94b3-11f1-9001-005056c00008/TrimType/Title",
+    "/BoardModel/Plugins/$values/#8adc0b07-94b3-11f1-9001-005056c00008/TableCreatorParameter/Columns/$values/#995b797e-94b3-11f1-9001-005056c00008/$type",
+    "/BoardModel/Plugins/$values/#8adc0b07-94b3-11f1-9001-005056c00008/TableCreatorParameter/Columns/$values/#995b797e-94b3-11f1-9001-005056c00008/CalendarType",
+    "/BoardModel/Plugins/$values/#8adc0b07-94b3-11f1-9001-005056c00008/TableCreatorParameter/Columns/$values/#995b797e-94b3-11f1-9001-005056c00008/ColumnName",
+    "/BoardModel/Plugins/$values/#8adc0b07-94b3-11f1-9001-005056c00008/TableCreatorParameter/Columns/$values/#995b797e-94b3-11f1-9001-005056c00008/DefaultType",
+    "/BoardModel/Plugins/$values/#8adc0b07-94b3-11f1-9001-005056c00008/TableCreatorParameter/Columns/$values/#995b797e-94b3-11f1-9001-005056c00008/DefaultType/$type",
+    "/BoardModel/Plugins/$values/#8adc0b07-94b3-11f1-9001-005056c00008/TableCreatorParameter/Columns/$values/#995b797e-94b3-11f1-9001-005056c00008/DefaultType/$value",
+    "/BoardModel/Plugins/$values/#8adc0b07-94b3-11f1-9001-005056c00008/TableCreatorParameter/Columns/$values/#995b797e-94b3-11f1-9001-005056c00008/ErrorHandling"
+  ],
+  "rawLength": 20623,
+  "usage": {
+    "completion_tokens": 7649,
+    "prompt_tokens": 18339,
+    "total_tokens": 25988,
+    "completion_tokens_details": {
+      "audio_tokens": 0,
+      "reasoning_tokens": 0,
+      "image_tokens": 0
+    },
+    "prompt_tokens_details": {
+      "audio_tokens": 0,
+      "cached_tokens": 0,
+      "cache_write_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost": 0.169752,
+    "is_byok": false,
+    "cost_details": {
+      "upstream_inference_cost": 0.169752,
+      "upstream_inference_prompt_cost": 0.055017,
+      "upstream_inference_completions_cost": 0.114735
+    }
+  }
+}
