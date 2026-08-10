@@ -8,14 +8,20 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "start": "node --env-file-if-exists=.env server/index.mjs",
     "lint": "eslint ."
   },
+  "engines": {
+    "node": ">=20.12"
+  },
   "dependencies": {
+    "express": "^5.2.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@types/node": "^26.2.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",

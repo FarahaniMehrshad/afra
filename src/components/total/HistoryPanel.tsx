@@ -1,14 +1,20 @@
-import { COLORS } from '@/constants';
+import { COLORS, LLM_CATEGORY_UI } from '@/constants';
 import { useAppStore } from '@/store/appStore';
+import { useLlmStore, verdictKey } from '@/store/llmStore';
 import { useBuild } from '@/hooks/useBuild';
 import type { EventKind } from '@/types/ir';
+import type { LlmVerdict } from '@/types/llm';
 
 /** Right rail — history of the currently selected path. */
 export function HistoryPanel() {
   const bundle = useAppStore((s) => s.bundle);
   const selPath = useAppStore((s) => s.selPath);
   const hideNoise = useAppStore((s) => s.hideNoise);
+  const variant = useAppStore((s) => s.variant);
   const build = useBuild();
+  const verdict = useLlmStore((s) =>
+    selPath === null ? undefined : s.verdicts.get(verdictKey(variant, selPath)),
+  );
 
   if (!bundle || !build) return null;
 
@@ -60,6 +66,7 @@ export function HistoryPanel() {
         </div>
       </div>
       <div style={{ flex: 1, overflow: 'auto', padding: '12px 14px 30px' }}>
+        {verdict && <VerdictCard verdict={verdict} />}
         {selPath === null || evs.length === 0 ? (
           <div
             style={{
@@ -161,6 +168,66 @@ export function HistoryPanel() {
         )}
       </div>
     </aside>
+  );
+}
+
+/** What the model made of this path, above the raw event list. */
+function VerdictCard({ verdict }: { verdict: LlmVerdict }) {
+  const ui = LLM_CATEGORY_UI[verdict.category];
+  const pct = Math.round(verdict.confidence * 100);
+
+  return (
+    <div
+      style={{
+        marginBottom: 12,
+        borderRadius: 12,
+        border: '1px solid ' + ui.bg,
+        background: 'rgba(148,180,255,0.04)',
+        padding: '10px 12px',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
+        <span
+          style={{
+            fontFamily: 'IBM Plex Mono, monospace',
+            fontSize: 10,
+            letterSpacing: '0.06em',
+            padding: '2px 7px',
+            borderRadius: 6,
+            background: ui.bg,
+            color: ui.color,
+          }}
+        >
+          {ui.label}
+        </span>
+        <span style={{ flex: 1 }} />
+        <span
+          style={{
+            fontFamily: 'IBM Plex Mono, monospace',
+            fontSize: 10,
+            color: '#6d7f9c',
+          }}
+        >
+          {pct}%
+        </span>
+      </div>
+
+      <div
+        style={{
+          height: 3,
+          borderRadius: 2,
+          background: 'rgba(148,180,255,0.10)',
+          marginBottom: 8,
+          overflow: 'hidden',
+        }}
+      >
+        <div style={{ width: pct + '%', height: '100%', background: ui.color }} />
+      </div>
+
+      <div style={{ fontSize: 11.5, color: '#b6c6e0', lineHeight: 1.55 }}>
+        {verdict.reason || ui.blurb}
+      </div>
+    </div>
   );
 }
 

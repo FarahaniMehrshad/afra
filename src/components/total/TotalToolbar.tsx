@@ -2,6 +2,7 @@ import { useAppStore } from '@/store/appStore';
 import { Segmented } from '../ui/Segmented';
 import { Toggle } from '../ui/Toggle';
 import { IconButton } from '../ui/IconButton';
+import { LlmControls } from './LlmControls';
 import type { EventKind } from '@/types/ir';
 import type { Variant } from '@/types/journey';
 import { COLORS } from '@/constants';
@@ -84,6 +85,8 @@ export function TotalToolbar({ changeLabel, countLabel, onJump }: Props) {
         </div>
       </div>
       <span style={{ flex: 1 }} />
+
+      <LlmControls />
 
       <Segmented<Variant>
         options={[

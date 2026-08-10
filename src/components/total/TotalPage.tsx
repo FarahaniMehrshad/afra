@@ -1,10 +1,12 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useAppStore } from '@/store/appStore';
+import { useLlmStore } from '@/store/llmStore';
 import { useBuild } from '@/hooks/useBuild';
 import { ROW_HEIGHT } from '@/constants';
 import { TotalToolbar } from './TotalToolbar';
 import { MergedList, ShownLine } from './MergedList';
 import { HistoryPanel } from './HistoryPanel';
+import { LlmDebugPanel } from './LlmDebugPanel';
 
 /** The Total-diff page — merged JSON list + line history side panel. */
 export function TotalPage() {
@@ -18,6 +20,10 @@ export function TotalPage() {
   const selPath = useAppStore((s) => s.selPath);
   const selectPath = useAppStore((s) => s.selectPath);
   const wrap = useAppStore((s) => s.wrap);
+  const variant = useAppStore((s) => s.variant);
+  const verdicts = useLlmStore((s) => s.verdicts);
+  const debugOpen = useLlmStore((s) => s.debugOpen);
+  const setDebugOpen = useLlmStore((s) => s.setDebugOpen);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -94,10 +100,13 @@ export function TotalPage() {
           selPath={selPath}
           wrap={wrap}
           steps={bundle.steps}
+          variant={variant}
+          verdicts={verdicts}
           onSelect={selectPath}
         />
       </div>
       <HistoryPanel />
+      {debugOpen && <LlmDebugPanel onClose={() => setDebugOpen(false)} />}
     </>
   );
 }

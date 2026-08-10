@@ -1,7 +1,9 @@
 # Compose file for one-command local runs:
+#   cp .env.example .env   # fill in LLM_BASE_URL / LLM_API_KEY
 #   docker compose up --build
 #
-# Static prod build served by nginx on http://localhost:8080
+# Prod build served by the Node server on http://localhost:8080, which also
+# hosts the /api/llm proxy so the key never reaches the browser.
 services:
   afra:
     build:
@@ -10,5 +12,8 @@ services:
     image: afra-diff-analyzer:latest
     container_name: afra
     ports:
-      - "8080:80"
+      - "8080:8787"
+    env_file:
+      - path: .env
+        required: false
     restart: unless-stopped

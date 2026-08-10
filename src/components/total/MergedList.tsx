@@ -1,7 +1,9 @@
 import { forwardRef } from 'react';
-import { COLORS, ROW_HEIGHT } from '@/constants';
+import { COLORS, LLM_CATEGORY_UI, ROW_HEIGHT } from '@/constants';
 import type { HistoryEvent, MergedLine } from '@/types/ir';
-import type { JourneyStep } from '@/types/journey';
+import type { JourneyStep, Variant } from '@/types/journey';
+import type { LlmVerdict } from '@/types/llm';
+import { verdictKey } from '@/store/llmStore';
 
 export interface ShownLine {
   l: MergedLine;
@@ -14,7 +16,40 @@ interface Props {
   selPath: string | null;
   wrap: boolean;
   steps: JourneyStep[];
+  variant: Variant;
+  verdicts: Map<string, LlmVerdict>;
   onSelect: (path: string) => void;
+}
+
+/** The LLM's verdict for one row, abbreviated to fit the gutter. */
+function VerdictBadge({ verdict }: { verdict: LlmVerdict | undefined }) {
+  if (!verdict) return <div />;
+  const ui = LLM_CATEGORY_UI[verdict.category];
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <span
+        title={
+          ui.label +
+          ' · ' +
+          Math.round(verdict.confidence * 100) +
+          '% confident\n' +
+          (verdict.reason || ui.blurb)
+        }
+        style={{
+          fontSize: 9.5,
+          lineHeight: '14px',
+          padding: '0 5px',
+          borderRadius: 5,
+          background: ui.bg,
+          color: ui.color,
+          letterSpacing: '0.04em',
+          opacity: verdict.confidence < 0.4 ? 0.55 : 1,
+        }}
+      >
+        {ui.short}
+      </span>
+    </div>
+  );
 }
 
 function kindColors(kinds: Set<HistoryEvent['st']>) {
@@ -25,10 +60,12 @@ function kindColors(kinds: Set<HistoryEvent['st']>) {
 
 /** The scrolling merged-JSON list itself. */
 export const MergedList = forwardRef<HTMLDivElement, Props>(function MergedList(
-  { lines, selPath, wrap, steps, onSelect },
+  { lines, selPath, wrap, steps, variant, verdicts, onSelect },
   ref,
 ) {
   const ws = wrap ? 'pre-wrap' : 'pre';
+  // The verdict gutter only earns its width once a run has produced something.
+  const gutter = verdicts.size > 0;
 
   return (
     <div
@@ -46,6 +83,7 @@ export const MergedList = forwardRef<HTMLDivElement, Props>(function MergedList(
           const sel = selPath !== null && x.l.path === selPath;
           const kinds = new Set(x.evs.map((e) => e.st));
           const colors = kindColors(kinds);
+          const verdict = gutter ? verdicts.get(verdictKey(variant, x.l.path)) : undefined;
           return (
             <div
               key={ri}
@@ -53,7 +91,7 @@ export const MergedList = forwardRef<HTMLDivElement, Props>(function MergedList(
               className="afra-row-outline"
               style={{
                 display: 'grid',
-                gridTemplateColumns: '96px 52px 1fr',
+                gridTemplateColumns: gutter ? '96px 42px 52px 1fr' : '96px 52px 1fr',
                 height: ROW_HEIGHT,
                 cursor: 'pointer',
                 background: sel
@@ -121,6 +159,7 @@ export const MergedList = forwardRef<HTMLDivElement, Props>(function MergedList(
                   />
                 ))}
               </div>
+              {gutter && <VerdictBadge verdict={verdict} />}
               <div
                 style={{
                   textAlign: 'right',
