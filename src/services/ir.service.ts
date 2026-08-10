@@ -22,14 +22,25 @@ import type {
  * Choose a stable identity key for an array element. The application's
  * IDs are far more meaningful than positional indices when the very same
  * plugin instance moves around between snapshots.
+ *
+ * An ID only earns that role when it actually recurs across the journey —
+ * the exe exporter regenerates some IDs on every write, and keying on those
+ * would make every step look like a wholesale remove + add. Pass the set of
+ * IDs seen in more than one step as `stableIds` to fall back to the
+ * structural key for the volatile ones.
  */
-export function itemKey(el: unknown, i: number): string {
+export function itemKey(
+  el: unknown,
+  i: number,
+  stableIds?: ReadonlySet<string>,
+): string {
   if (el && typeof el === 'object' && !Array.isArray(el)) {
     const record = el as Record<string, unknown>;
     for (const k of ID_KEYS) {
       const v = record[k];
       if (typeof v === 'string' && v.length > 8 && v !== EMPTY_GUID) {
-        return '#' + v;
+        const key = '#' + v;
+        if (!stableIds || stableIds.has(key)) return key;
       }
     }
     const t = record.$type;
@@ -38,6 +49,26 @@ export function itemKey(el: unknown, i: number): string {
     }
   }
   return String(i);
+}
+
+/**
+ * Collect every id-style array-item key present in a raw JSON value. The
+ * build phase counts how many step documents each key shows up in to tell
+ * durable identities apart from per-export churn.
+ */
+export function collectIdKeys(v: unknown, out: Set<string>): Set<string> {
+  if (Array.isArray(v)) {
+    v.forEach((el, i) => {
+      const k = itemKey(el, i);
+      if (k.startsWith('#')) out.add(k);
+      collectIdKeys(el, out);
+    });
+    return out;
+  }
+  if (v && typeof v === 'object') {
+    for (const val of Object.values(v as object)) collectIdKeys(val, out);
+  }
+  return out;
 }
 
 /** Recursively sort object keys so that JSON.stringify is stable. */
@@ -54,11 +85,14 @@ export function sortKeys<T>(v: T): T {
 }
 
 /** Convert plain JSON into the IR tree. */
-export function toIR(v: unknown): IRNode {
+export function toIR(v: unknown, stableIds?: ReadonlySet<string>): IRNode {
   if (Array.isArray(v)) {
     const arr: IRArr = {
       t: 'arr',
-      items: v.map((el, i) => ({ k: itemKey(el, i), n: toIR(el) })),
+      items: v.map((el, i) => ({
+        k: itemKey(el, i, stableIds),
+        n: toIR(el, stableIds),
+      })),
     };
     return arr;
   }
@@ -67,7 +101,7 @@ export function toIR(v: unknown): IRNode {
       t: 'obj',
       items: Object.keys(v as object).map((k) => ({
         k,
-        n: toIR((v as Record<string, unknown>)[k]),
+        n: toIR((v as Record<string, unknown>)[k], stableIds),
       })),
     };
     return obj;

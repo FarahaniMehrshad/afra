@@ -8,6 +8,7 @@ import type {
 } from '@/types/ir';
 import type { JourneyBundle, JourneyStep, Variant } from '@/types/journey';
 import {
+  collectIdKeys,
   emitLines,
   flatten,
   fmt,
@@ -53,7 +54,23 @@ export function build(bundle: JourneyBundle, variant: Variant): BuildResult {
     };
   });
 
-  const irs: (IRNode | null)[] = docs.map((d) => (d.obj ? toIR(d.obj) : null));
+  // An ID is only an identity if it survives more than one step; anything
+  // minted afresh on every export is churn and must not key an array item.
+  const idSteps = new Map<string, number>();
+  let docCount = 0;
+  for (const d of docs) {
+    if (!d.obj) continue;
+    docCount++;
+    for (const k of collectIdKeys(d.obj, new Set())) {
+      idSteps.set(k, (idSteps.get(k) ?? 0) + 1);
+    }
+  }
+  const stableIds = new Set<string>();
+  for (const [k, n] of idSteps) if (n > 1 || docCount < 2) stableIds.add(k);
+
+  const irs: (IRNode | null)[] = docs.map((d) =>
+    d.obj ? toIR(d.obj, stableIds) : null,
+  );
 
   let merged: IRNode | null = null;
   for (const ir of irs) if (ir) merged = mergeIR(merged, ir);
