@@ -8,7 +8,11 @@ interface Props {
   onPathClick: (path: string) => void;
 }
 
-export function ImpactColumn({ impact, kinds, onPathClick }: Props) {
+export function ImpactColumn({
+  impact,
+  kinds,
+  onPathClick,
+}: Props) {
   return (
     <section
       style={{

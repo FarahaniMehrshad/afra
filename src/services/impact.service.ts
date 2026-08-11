@@ -1,5 +1,6 @@
 import type { BuildResult, EventKind, HistoryEvent } from '@/types/ir';
 import type {
+  ClusterSibling,
   DerivedChange,
   ImpactDerivedCategory,
   UiFieldEntry,
@@ -175,4 +176,144 @@ function rankKind(k: HistoryEvent['st']): number {
   if (k === 'add') return 0;
   if (k === 'modify') return 1;
   return 2;
+}
+
+/**
+ * Build a merge signature for "same UI action" clustering.
+ * - add: `to`
+ * - remove: `from`
+ * - modify: `from -> to`
+ */
+export function signatureFor(ev: HistoryEvent): string {
+  if (ev.st === 'add') return ev.to ?? 'null';
+  if (ev.st === 'remove') return ev.from ?? 'null';
+  return (ev.from ?? 'null') + '→' + (ev.to ?? 'null');
+}
+
+/**
+ * Collapse same-step, same-kind, same-value UI rows into a representative row.
+ * This is a post-processing step over `computeUiFieldImpact` output so the full
+ * mode stays byte-identical when the toggle is off.
+ */
+export function mergeSameValueClusters(entries: UiFieldEntry[]): UiFieldEntry[] {
+  const out = cloneEntries(entries);
+
+  interface OccRef {
+    entry: UiFieldEntry;
+    canonical: string;
+    kind: EventKind;
+    occ: UiFieldStepOccurrence;
+  }
+
+  const clusters = new Map<string, OccRef[]>();
+  for (const entry of out) {
+    for (const kind of ['add', 'remove', 'modify'] as const) {
+      for (const occ of entry.byKind[kind]) {
+        const seed = occ.concretePaths[0]?.event;
+        if (!seed) continue;
+        const sig = signatureFor(seed);
+        occ.valueSignature = sig;
+        const key = occ.step + '\u0000' + kind + '\u0000' + sig;
+        const list = clusters.get(key);
+        const ref: OccRef = { entry, canonical: entry.canonical, kind, occ };
+        if (list) list.push(ref);
+        else clusters.set(key, [ref]);
+      }
+    }
+  }
+
+  const toHide = new Set<UiFieldStepOccurrence>();
+
+  for (const refs of clusters.values()) {
+    if (refs.length < 2) continue;
+    refs.sort(
+      (a, b) =>
+        a.canonical.length - b.canonical.length ||
+        a.canonical.localeCompare(b.canonical),
+    );
+
+    const rep = refs[0];
+    rep.occ.mergedInto = null;
+    rep.occ.mergesFrom = [];
+
+    for (let i = 1; i < refs.length; i++) {
+      const cur = refs[i];
+      const sibling: ClusterSibling = {
+        canonical: cur.canonical,
+        concretePaths: Array.from(
+          new Set(cur.occ.concretePaths.map((p) => p.path)),
+        ).sort((a, b) => a.localeCompare(b)),
+      };
+      rep.occ.mergesFrom.push(sibling);
+
+      cur.occ.mergedInto = rep.canonical;
+      cur.occ.attributedDerivedCount = cur.occ.derived.length;
+      cur.occ.mergesFrom = undefined;
+      cur.occ.derived = [];
+      toHide.add(cur.occ);
+    }
+
+    rep.occ.mergesFrom.sort((a, b) => a.canonical.localeCompare(b.canonical));
+  }
+
+  for (const entry of out) {
+    entry.byKind.add = entry.byKind.add.filter((row) => !toHide.has(row));
+    entry.byKind.remove = entry.byKind.remove.filter((row) => !toHide.has(row));
+    entry.byKind.modify = entry.byKind.modify.filter((row) => !toHide.has(row));
+  }
+
+  const visible = out.filter(
+    (entry) =>
+      entry.byKind.add.length > 0 ||
+      entry.byKind.remove.length > 0 ||
+      entry.byKind.modify.length > 0,
+  );
+
+  for (const entry of visible) {
+    entry.totals = {
+      add: entry.byKind.add.reduce((n, o) => n + o.concretePaths.length, 0),
+      remove: entry.byKind.remove.reduce((n, o) => n + o.concretePaths.length, 0),
+      modify: entry.byKind.modify.reduce((n, o) => n + o.concretePaths.length, 0),
+      derived: [...entry.byKind.add, ...entry.byKind.remove, ...entry.byKind.modify].reduce(
+        (n, o) => n + o.derived.length,
+        0,
+      ),
+    };
+  }
+
+  return visible;
+}
+
+function cloneEntries(entries: UiFieldEntry[]): UiFieldEntry[] {
+  return entries.map((entry) => ({
+    canonical: entry.canonical,
+    variant: entry.variant,
+    byKind: {
+      add: entry.byKind.add.map(cloneOccurrence),
+      remove: entry.byKind.remove.map(cloneOccurrence),
+      modify: entry.byKind.modify.map(cloneOccurrence),
+    },
+    totals: { ...entry.totals },
+  }));
+}
+
+function cloneOccurrence(occ: UiFieldStepOccurrence): UiFieldStepOccurrence {
+  return {
+    ...occ,
+    concretePaths: occ.concretePaths.map((p) => ({
+      path: p.path,
+      event: { ...p.event },
+    })),
+    derived: occ.derived.map((d) => ({
+      path: d.path,
+      category: d.category,
+      event: { ...d.event },
+    })),
+    mergesFrom: occ.mergesFrom
+      ? occ.mergesFrom.map((m) => ({
+          canonical: m.canonical,
+          concretePaths: [...m.concretePaths],
+        }))
+      : undefined,
+  };
 }

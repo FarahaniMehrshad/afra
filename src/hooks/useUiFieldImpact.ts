@@ -3,7 +3,10 @@ import { useAppStore } from '@/store/appStore';
 import { useLlmStore } from '@/store/llmStore';
 import type { ImpactDerivedCategory, UiFieldImpact } from '@/types/impact';
 import { getBuild } from './useBuild';
-import { computeUiFieldImpact } from '@/services/impact.service';
+import {
+  computeUiFieldImpact,
+  mergeSameValueClusters,
+} from '@/services/impact.service';
 
 interface UseUiFieldImpactResult {
   wpf: UiFieldImpact | null;
@@ -22,6 +25,7 @@ export function useUiFieldImpact(): UseUiFieldImpactResult {
   const hideNoise = useAppStore((s) => s.hideNoise);
   const includeRandomId = useAppStore((s) => s.impactIncludeRandomId);
   const includeUnclassified = useAppStore((s) => s.impactIncludeUnclassified);
+  const mergeDerived = useAppStore((s) => s.impactMergeDerived);
   const verdicts = useLlmStore((s) => s.verdicts);
 
   return useMemo(() => {
@@ -41,7 +45,7 @@ export function useUiFieldImpact(): UseUiFieldImpactResult {
     const wpfBuild = getBuild(bundle, 'wpf');
     const exeBuild = getBuild(bundle, 'exe');
 
-    const wpf = toImpact('wpf', computeUiFieldImpact({
+    const wpfEntries = computeUiFieldImpact({
       build: wpfBuild,
       variant: 'wpf',
       verdicts,
@@ -49,8 +53,8 @@ export function useUiFieldImpact(): UseUiFieldImpactResult {
       hideNoise,
       includeCategories: include,
       includeUnclassified,
-    }));
-    const exe = toImpact('exe', computeUiFieldImpact({
+    });
+    const exeEntries = computeUiFieldImpact({
       build: exeBuild,
       variant: 'exe',
       verdicts,
@@ -58,7 +62,15 @@ export function useUiFieldImpact(): UseUiFieldImpactResult {
       hideNoise,
       includeCategories: include,
       includeUnclassified,
-    }));
+    });
+    const wpf = toImpact(
+      'wpf',
+      mergeDerived ? mergeSameValueClusters(wpfEntries) : wpfEntries,
+    );
+    const exe = toImpact(
+      'exe',
+      mergeDerived ? mergeSameValueClusters(exeEntries) : exeEntries,
+    );
 
     return {
       wpf,
@@ -71,7 +83,14 @@ export function useUiFieldImpact(): UseUiFieldImpactResult {
         derived: (wpf?.totals.derived ?? 0) + (exe?.totals.derived ?? 0),
       },
     };
-  }, [bundle, verdicts, hideNoise, includeRandomId, includeUnclassified]);
+  }, [
+    bundle,
+    verdicts,
+    hideNoise,
+    includeRandomId,
+    includeUnclassified,
+    mergeDerived,
+  ]);
 }
 
 function toImpact(variant: 'wpf' | 'exe', entries: ReturnType<typeof computeUiFieldImpact>): UiFieldImpact {

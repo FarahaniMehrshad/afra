@@ -11,12 +11,24 @@ interface Props {
 
 const ORDER: EventKind[] = ['add', 'modify', 'remove'];
 
-export function ImpactFieldCard({ entry, kinds, onPathClick }: Props) {
+export function ImpactFieldCard({
+  entry,
+  kinds,
+  onPathClick,
+}: Props) {
   const [open, setOpen] = useState(false);
   const activeKinds = kinds.length ? kinds : ORDER;
   const visibleKinds = useMemo(
     () => activeKinds.filter((k) => entry.byKind[k].length > 0),
     [activeKinds, entry],
+  );
+  const allRows = useMemo(
+    () => [...entry.byKind.add, ...entry.byKind.modify, ...entry.byKind.remove],
+    [entry],
+  );
+  const derivedShown = useMemo(
+    () => allRows.reduce((n, row) => n + row.derived.length, 0),
+    [allRows],
   );
 
   return (
@@ -47,7 +59,7 @@ export function ImpactFieldCard({ entry, kinds, onPathClick }: Props) {
           <CountTag label="add" value={entry.totals.add} />
           <CountTag label="mod" value={entry.totals.modify} />
           <CountTag label="rem" value={entry.totals.remove} />
-          <CountTag label="drv" value={entry.totals.derived} />
+          <CountTag label="drv" value={derivedShown} />
         </div>
       </button>
 
@@ -70,7 +82,12 @@ export function ImpactFieldCard({ entry, kinds, onPathClick }: Props) {
                 {kind}
               </div>
               {entry.byKind[kind].map((row, idx) => (
-                <StepOccurrenceRow key={kind + '-' + row.step + '-' + idx} kind={kind} row={row} onPathClick={onPathClick} />
+                <StepOccurrenceRow
+                  key={kind + '-' + row.step + '-' + idx}
+                  kind={kind}
+                  row={row}
+                  onPathClick={onPathClick}
+                />
               ))}
             </div>
           ))}

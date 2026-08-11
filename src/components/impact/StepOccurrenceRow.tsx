@@ -9,7 +9,11 @@ interface Props {
   onPathClick: (path: string) => void;
 }
 
-export function StepOccurrenceRow({ kind, row, onPathClick }: Props) {
+export function StepOccurrenceRow({
+  kind,
+  row,
+  onPathClick,
+}: Props) {
   const accent = kind === 'add' ? COLORS.add : kind === 'remove' ? COLORS.remove : COLORS.modify;
 
   return (
@@ -71,6 +75,58 @@ export function StepOccurrenceRow({ kind, row, onPathClick }: Props) {
           </button>
         ))}
       </div>
+
+      {row.mergedInto === null && row.mergesFrom && row.mergesFrom.length > 0 && (
+        <div
+          style={{
+            marginTop: 6,
+            border: '1px solid rgba(148,180,255,0.12)',
+            borderRadius: 8,
+            padding: 8,
+            background: 'rgba(148,180,255,0.04)',
+          }}
+        >
+          <div
+            style={{
+              fontFamily: 'IBM Plex Mono, monospace',
+              fontSize: 10.5,
+              color: '#8ea3c1',
+              marginBottom: 5,
+            }}
+          >
+            also written to {row.mergesFrom.length} sibling field
+            {row.mergesFrom.length > 1 ? 's' : ''}
+          </div>
+          <div style={{ display: 'grid', gap: 5 }}>
+            {row.mergesFrom.map((s) => (
+              <button
+                key={s.canonical}
+                className="afra-btn afra-row-outline"
+                onClick={() => {
+                  const path = s.concretePaths[0];
+                  if (path) onPathClick(path);
+                }}
+                style={{
+                  textAlign: 'left',
+                  borderRadius: 7,
+                  border: '1px solid rgba(148,180,255,0.14)',
+                  background: 'rgba(148,180,255,0.06)',
+                  padding: '5px 7px',
+                  fontFamily: 'IBM Plex Mono, monospace',
+                  fontSize: 10.5,
+                  color: '#c6d5ec',
+                }}
+                title={s.concretePaths[0] ?? s.canonical}
+              >
+                {s.canonical}
+                <span style={{ marginLeft: 6, color: '#7f94b1' }}>
+                  ({s.concretePaths.length} path{s.concretePaths.length > 1 ? 's' : ''})
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <DerivedList rows={row.derived} onPathClick={onPathClick} />
     </div>

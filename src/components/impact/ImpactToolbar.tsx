@@ -28,6 +28,8 @@ export function ImpactToolbar({ summaryLabel }: Props) {
   const toggleIncludeRandomId = useAppStore((s) => s.toggleImpactIncludeRandomId);
   const includeUnclassified = useAppStore((s) => s.impactIncludeUnclassified);
   const toggleIncludeUnclassified = useAppStore((s) => s.toggleImpactIncludeUnclassified);
+  const mergeDerived = useAppStore((s) => s.impactMergeDerived);
+  const toggleMergeDerived = useAppStore((s) => s.toggleImpactMergeDerived);
 
   return (
     <div
@@ -76,6 +78,13 @@ export function ImpactToolbar({ summaryLabel }: Props) {
         title="Include paths with no verdict"
       >
         include unclassified
+      </Toggle>
+      <Toggle
+        active={mergeDerived}
+        onClick={toggleMergeDerived}
+        title="Collapse same step/kind/value rows so one representative owns derived changes."
+      >
+        merge same-value fields
       </Toggle>
 
       <input

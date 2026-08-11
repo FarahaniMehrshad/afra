@@ -18,6 +18,11 @@ export interface DerivedChange {
   event: HistoryEvent;
 }
 
+export interface ClusterSibling {
+  canonical: string;
+  concretePaths: string[];
+}
+
 export interface UiFieldStepOccurrence {
   step: number;
   label: string;
@@ -25,6 +30,14 @@ export interface UiFieldStepOccurrence {
   concretePaths: ConcretePathChange[];
   derived: DerivedChange[];
   sharedWith: number;
+  /** Cluster signature used by merge mode: step+kind+value. */
+  valueSignature?: string;
+  /** `null` => representative, `string` => points at representative canonical. */
+  mergedInto?: string | null;
+  /** Representative-only list of sibling canonical fields folded into this row. */
+  mergesFrom?: ClusterSibling[];
+  /** Non-representative rows keep the hidden derived count for context text. */
+  attributedDerivedCount?: number;
 }
 
 export interface UiFieldTotals {

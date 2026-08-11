@@ -47,6 +47,8 @@ export interface AppState {
   impactIncludeRandomId: boolean;
   /** Show paths with no verdict in impact rows. */
   impactIncludeUnclassified: boolean;
+  /** Merge same-value UI events under one representative row. */
+  impactMergeDerived: boolean;
 
   error: string;
   dragOver: boolean;
@@ -74,6 +76,7 @@ export interface AppState {
   toggleImpactKind: (t: EventKind) => void;
   toggleImpactIncludeRandomId: () => void;
   toggleImpactIncludeUnclassified: () => void;
+  toggleImpactMergeDerived: () => void;
   selectPath: (p: string | null) => void;
 }
 
@@ -97,6 +100,7 @@ export const useAppStore = create<AppState>((set) => ({
   impactKinds: [],
   impactIncludeRandomId: false,
   impactIncludeUnclassified: false,
+  impactMergeDerived: false,
   error: '',
   dragOver: false,
 
@@ -150,5 +154,7 @@ export const useAppStore = create<AppState>((set) => ({
     set((s) => ({ impactIncludeRandomId: !s.impactIncludeRandomId })),
   toggleImpactIncludeUnclassified: () =>
     set((s) => ({ impactIncludeUnclassified: !s.impactIncludeUnclassified })),
+  toggleImpactMergeDerived: () =>
+    set((s) => ({ impactMergeDerived: !s.impactMergeDerived })),
   selectPath: (p) => set({ selPath: p }),
 }));
