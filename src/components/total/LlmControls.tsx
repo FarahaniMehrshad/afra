@@ -18,11 +18,25 @@ export function LlmControls() {
     run,
     cancel,
     openDebug,
+    clear,
   } = useLlmAnalysis();
   const labelled = useLlmStore((s) => s.verdicts.size);
 
   const running = status === 'running';
   const disabled = !ready || (!running && (!healthChecked || !configured));
+
+  const handleClear = () => {
+    // A single confirm is cheap insurance — the DB delete is not undo-able.
+    if (
+      window.confirm(
+        'Clear every LLM verdict for this journey?\n\n' +
+          'This wipes the in-memory results and deletes the analysis rows saved ' +
+          'in Postgres (both wpf and exe). The next run starts fresh.',
+      )
+    ) {
+      clear();
+    }
+  };
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -75,6 +89,25 @@ export function LlmControls() {
         }}
       >
         payload
+      </button>
+
+      <button
+        onClick={handleClear}
+        disabled={!ready || running}
+        className="afra-btn"
+        title="Wipe every LLM verdict for this journey (in-memory and in Postgres) so the next run starts clean."
+        style={{
+          fontFamily: 'IBM Plex Mono, monospace',
+          fontSize: 11,
+          padding: '6px 10px',
+          borderRadius: 9,
+          border: '1px solid rgba(226,90,105,0.28)',
+          background: 'rgba(226,90,105,0.08)',
+          color: '#f0a0aa',
+          opacity: !ready || running ? 0.45 : 1,
+        }}
+      >
+        clear results
       </button>
 
       {!running && labelled > 0 && (

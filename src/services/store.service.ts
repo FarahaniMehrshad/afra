@@ -187,6 +187,32 @@ export function saveJourneySafe(bundle: JourneyBundle): Promise<void> {
   });
 }
 
+/** Delete a single artifact. Missing rows resolve — the caller wanted them gone. */
+export async function deleteArtifact(
+  name: string,
+  kind: ArtifactKind,
+  key: string,
+): Promise<void> {
+  const res = await fetch(artifactUrl(name, kind, key), { method: 'DELETE' });
+  if (res.status === 404) return;
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new StoreError(body?.error ?? 'deleteArtifact failed (' + res.status + ')');
+  }
+}
+
+/** Fire-and-forget delete. Persistence being off must not stall the UI. */
+export function deleteArtifactSafe(
+  name: string,
+  kind: ArtifactKind,
+  key: string,
+): Promise<void> {
+  return deleteArtifact(name, kind, key).catch((e) => {
+    // eslint-disable-next-line no-console
+    console.warn('[afra.store]', kind, key, 'delete failed:', e);
+  });
+}
+
 function artifactUrl(name: string, kind: ArtifactKind, key: string): string {
   return (
     API +

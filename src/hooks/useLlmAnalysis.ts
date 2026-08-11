@@ -5,6 +5,7 @@ import { getBuild } from './useBuild';
 import { buildLlmPayload, chunkPayload } from '@/services/llm.payload';
 import { renderChunk } from '@/services/llm.prompt';
 import { analyzeChunk, fetchLlmHealth } from '@/services/llm.service';
+import { deleteArtifactSafe } from '@/services/store.service';
 import type { LlmChunkTrace } from '@/types/llm';
 
 /**
@@ -184,6 +185,26 @@ export function useLlmAnalysis() {
     setDebugOpen(true);
   }, [prepare, setDebugOpen]);
 
+  /**
+   * Wipe every LLM verdict for the current journey — both the in-memory
+   * `llmStore` and the persisted `analysis/wpf` + `analysis/exe` rows in
+   * Postgres. Cancels any run in flight first so a stale batch can't repopulate
+   * verdicts after they've been cleared.
+   *
+   * The DB deletes are fire-and-forget: persistence being unavailable must not
+   * prevent the operator from starting over locally.
+   */
+  const clear = useCallback(() => {
+    abortRef.current?.abort();
+    // `reset(bundle)` re-marks `forBundle` so `useVerdictInvalidation` sees no
+    // divergence and doesn't clobber whatever comes next.
+    useLlmStore.getState().reset(bundle);
+    if (bundle) {
+      void deleteArtifactSafe(bundle.name, 'analysis', 'wpf');
+      void deleteArtifactSafe(bundle.name, 'analysis', 'exe');
+    }
+  }, [bundle]);
+
   return {
     health,
     healthChecked,
@@ -196,5 +217,6 @@ export function useLlmAnalysis() {
     run,
     cancel,
     openDebug,
+    clear,
   };
 }
