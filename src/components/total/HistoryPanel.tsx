@@ -10,6 +10,7 @@ export function HistoryPanel() {
   const bundle = useAppStore((s) => s.bundle);
   const selPath = useAppStore((s) => s.selPath);
   const hideNoise = useAppStore((s) => s.hideNoise);
+  const totalStepFilters = useAppStore((s) => s.totalStepFilters);
   const variant = useAppStore((s) => s.variant);
   const build = useBuild();
   const verdict = useLlmStore((s) =>
@@ -18,8 +19,11 @@ export function HistoryPanel() {
 
   if (!bundle || !build) return null;
 
+  const hasStepFilter = totalStepFilters.length > 0;
   const evs = selPath !== null
-    ? (build.hist.get(selPath) ?? []).filter((e) => !(hideNoise && e.noise))
+    ? (build.hist.get(selPath) ?? []).filter(
+        (e) => !(hideNoise && e.noise) && (!hasStepFilter || totalStepFilters.includes(e.i)),
+      )
     : [];
 
   return (
@@ -66,7 +70,7 @@ export function HistoryPanel() {
         </div>
       </div>
       <div style={{ flex: 1, overflow: 'auto', padding: '12px 14px 30px' }}>
-        {verdict && <VerdictCard verdict={verdict} />}
+        {verdict && (!hasStepFilter || evs.length > 0) && <VerdictCard verdict={verdict} />}
         {selPath === null || evs.length === 0 ? (
           <div
             style={{
@@ -78,8 +82,10 @@ export function HistoryPanel() {
           >
             {selPath === null
               ? 'Click any line to see how it moved through the steps.'
-              : 'This line never changed across the run' +
-                (hideNoise ? ' (or every change on it was ID/UID noise).' : '.')}
+              : hasStepFilter
+                ? 'This line has no changes in the selected step filter.'
+                : 'This line never changed across the run' +
+                  (hideNoise ? ' (or every change on it was ID/UID noise).' : '.')}
           </div>
         ) : (
           evs.map((e, i) => {

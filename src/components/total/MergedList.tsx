@@ -17,6 +17,7 @@ interface Props {
   wrap: boolean;
   steps: JourneyStep[];
   variant: Variant;
+  hasStepFilter: boolean;
   verdicts: Map<string, LlmVerdict>;
   onSelect: (path: string) => void;
 }
@@ -60,7 +61,7 @@ function kindColors(kinds: Set<HistoryEvent['st']>) {
 
 /** The scrolling merged-JSON list itself. */
 export const MergedList = forwardRef<HTMLDivElement, Props>(function MergedList(
-  { lines, selPath, wrap, steps, variant, verdicts, onSelect },
+  { lines, selPath, wrap, steps, variant, hasStepFilter, verdicts, onSelect },
   ref,
 ) {
   const ws = wrap ? 'pre-wrap' : 'pre';
@@ -83,7 +84,10 @@ export const MergedList = forwardRef<HTMLDivElement, Props>(function MergedList(
           const sel = selPath !== null && x.l.path === selPath;
           const kinds = new Set(x.evs.map((e) => e.st));
           const colors = kindColors(kinds);
-          const verdict = gutter ? verdicts.get(verdictKey(variant, x.l.path)) : undefined;
+          const verdict =
+            gutter && (!hasStepFilter || x.evs.length > 0)
+              ? verdicts.get(verdictKey(variant, x.l.path))
+              : undefined;
           return (
             <div
               key={ri}

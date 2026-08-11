@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { Segmented } from '../ui/Segmented';
 import { Toggle } from '../ui/Toggle';
@@ -44,6 +45,9 @@ const COUNT_OPTIONS: { value: number; label: string }[] = [
 
 /** Toolbar for the merged / total view. */
 export function TotalToolbar({ changeLabel, countLabel, onJump }: Props) {
+  const [stepMenuOpen, setStepMenuOpen] = useState(false);
+  const stepMenuRef = useRef<HTMLDivElement>(null);
+  const bundle = useAppStore((s) => s.bundle);
   const variant = useAppStore((s) => s.variant);
   const setVariant = useAppStore((s) => s.setVariant);
   const onlyChanged = useAppStore((s) => s.onlyChanged);
@@ -52,8 +56,40 @@ export function TotalToolbar({ changeLabel, countLabel, onJump }: Props) {
   const toggleType = useAppStore((s) => s.toggleType);
   const minCount = useAppStore((s) => s.minCount);
   const setMinCount = useAppStore((s) => s.setMinCount);
+  const totalStepFilters = useAppStore((s) => s.totalStepFilters);
+  const toggleTotalStepFilter = useAppStore((s) => s.toggleTotalStepFilter);
+  const clearTotalStepFilters = useAppStore((s) => s.clearTotalStepFilters);
   const totalQuery = useAppStore((s) => s.totalQuery);
   const setTotalQuery = useAppStore((s) => s.setTotalQuery);
+  const stepOptions = useMemo(
+    () => (bundle ? bundle.steps.map((step, i) => ({ step, i })).filter((x) => x.i > 0) : []),
+    [bundle],
+  );
+  const stepLabel = useMemo(() => {
+    if (!bundle || totalStepFilters.length === 0) return 'all steps';
+    const labels = totalStepFilters
+      .map((idx) => bundle.steps[idx])
+      .filter(Boolean)
+      .map((step) => String(step.ordinal).padStart(2, '0'));
+    if (labels.length <= 2) return labels.join(', ');
+    return labels.slice(0, 2).join(', ') + ' +' + (labels.length - 2);
+  }, [bundle, totalStepFilters]);
+
+  useEffect(() => {
+    if (!stepMenuOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      if (!stepMenuRef.current?.contains(event.target as Node)) setStepMenuOpen(false);
+    };
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setStepMenuOpen(false);
+    };
+    window.addEventListener('mousedown', onPointerDown);
+    window.addEventListener('keydown', onEscape);
+    return () => {
+      window.removeEventListener('mousedown', onPointerDown);
+      window.removeEventListener('keydown', onEscape);
+    };
+  }, [stepMenuOpen]);
 
   return (
     <div
@@ -150,6 +186,133 @@ export function TotalToolbar({ changeLabel, countLabel, onJump }: Props) {
             </button>
           );
         })}
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '3px 3px 3px 9px',
+          borderRadius: 10,
+          background: 'rgba(148,180,255,0.05)',
+          border: '1px solid rgba(148,180,255,0.09)',
+          position: 'relative',
+        }}
+        ref={stepMenuRef}
+      >
+        <span
+          style={{
+            fontFamily: 'IBM Plex Mono, monospace',
+            fontSize: 10.5,
+            color: '#5f7292',
+          }}
+        >
+          by step
+        </span>
+        <button
+          onClick={() => setStepMenuOpen((v) => !v)}
+          className="afra-btn"
+          title="Select steps to include in Total diff"
+          aria-haspopup="menu"
+          aria-expanded={stepMenuOpen}
+          style={{
+            fontFamily: 'IBM Plex Mono, monospace',
+            fontSize: 11,
+            padding: '5px 10px',
+            borderRadius: 8,
+            border: 'none',
+            background: stepMenuOpen ? 'rgba(79,141,253,0.24)' : 'transparent',
+            color: stepMenuOpen ? '#e9f0ff' : '#9ab0ce',
+            flex: 'none',
+          }}
+        >
+          {stepLabel} ▾
+        </button>
+        {stepMenuOpen && (
+          <div
+            role="menu"
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 8px)',
+              left: 0,
+              zIndex: 30,
+              width: 320,
+              maxHeight: 280,
+              overflow: 'auto',
+              borderRadius: 12,
+              border: '1px solid rgba(120,165,255,0.25)',
+              background: 'rgba(10,16,28,0.96)',
+              boxShadow: '0 14px 34px rgba(4,8,16,0.55)',
+              padding: 8,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 5,
+            }}
+          >
+            <button
+              onClick={clearTotalStepFilters}
+              className="afra-btn afra-row-hover"
+              style={{
+                fontFamily: 'IBM Plex Mono, monospace',
+                fontSize: 11,
+                padding: '7px 9px',
+                borderRadius: 8,
+                border: 'none',
+                textAlign: 'left',
+                background:
+                  totalStepFilters.length === 0 ? 'rgba(79,141,253,0.20)' : 'transparent',
+                color: totalStepFilters.length === 0 ? '#dce9ff' : '#a4b8d5',
+              }}
+            >
+              all steps
+            </button>
+            {stepOptions.map(({ step, i }) => {
+              const active = totalStepFilters.includes(i);
+              return (
+                <label
+                  key={i}
+                  className="afra-row-hover"
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '16px 28px 1fr',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '7px 9px',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    background: active ? 'rgba(79,141,253,0.16)' : 'transparent',
+                  }}
+                  title={step.operation}
+                >
+                  <input
+                    type="checkbox"
+                    checked={active}
+                    onChange={() => toggleTotalStepFilter(i)}
+                  />
+                  <span
+                    style={{
+                      fontFamily: 'IBM Plex Mono, monospace',
+                      fontSize: 10.5,
+                      color: active ? '#dce9ff' : '#8fa5c5',
+                    }}
+                  >
+                    {String(step.ordinal).padStart(2, '0')}
+                  </span>
+                  <span
+                    className="afra-ellipsis"
+                    style={{
+                      fontSize: 11.5,
+                      color: active ? '#dce9ff' : '#a4b8d5',
+                    }}
+                  >
+                    {step.label}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

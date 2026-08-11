@@ -37,6 +37,8 @@ export interface AppState {
   typeFilters: EventKind[];
   /** Minimum change-count filter in the merged view. */
   minCount: number;
+  /** Selected step indexes to scope changes in merged view. */
+  totalStepFilters: number[];
   /** Filter box in the UI-impact toolbar. */
   impactQuery: string;
   /** Type filter chips in the UI-impact view. */
@@ -63,6 +65,8 @@ export interface AppState {
   toggleChanged: () => void;
   toggleType: (t: EventKind) => void;
   setMinCount: (n: number) => void;
+  toggleTotalStepFilter: (step: number) => void;
+  clearTotalStepFilters: () => void;
   setStepQuery: (q: string) => void;
   setDiffQuery: (q: string) => void;
   setTotalQuery: (q: string) => void;
@@ -88,6 +92,7 @@ export const useAppStore = create<AppState>((set) => ({
   onlyChanged: false,
   typeFilters: [],
   minCount: 0,
+  totalStepFilters: [],
   impactQuery: '',
   impactKinds: [],
   impactIncludeRandomId: false,
@@ -101,6 +106,7 @@ export const useAppStore = create<AppState>((set) => ({
       page: 'steps',
       stepIdx: bundle.steps.length > 1 ? 1 : 0,
       selPath: null,
+      totalStepFilters: [],
       error: '',
       dragOver: false,
     }),
@@ -123,6 +129,13 @@ export const useAppStore = create<AppState>((set) => ({
         : [...s.typeFilters, t],
     })),
   setMinCount: (n) => set({ minCount: n }),
+  toggleTotalStepFilter: (step) =>
+    set((s) => ({
+      totalStepFilters: s.totalStepFilters.includes(step)
+        ? s.totalStepFilters.filter((x) => x !== step)
+        : [...s.totalStepFilters, step].sort((a, b) => a - b),
+    })),
+  clearTotalStepFilters: () => set({ totalStepFilters: [] }),
   setStepQuery: (q) => set({ stepQuery: q }),
   setDiffQuery: (q) => set({ diffQuery: q }),
   setTotalQuery: (q) => set({ totalQuery: q }),

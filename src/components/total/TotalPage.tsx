@@ -16,6 +16,7 @@ export function TotalPage() {
   const onlyChanged = useAppStore((s) => s.onlyChanged);
   const typeFilters = useAppStore((s) => s.typeFilters);
   const minCount = useAppStore((s) => s.minCount);
+  const totalStepFilters = useAppStore((s) => s.totalStepFilters);
   const totalQuery = useAppStore((s) => s.totalQuery);
   const selPath = useAppStore((s) => s.selPath);
   const selectPath = useAppStore((s) => s.selectPath);
@@ -26,6 +27,7 @@ export function TotalPage() {
   const setDebugOpen = useLlmStore((s) => s.setDebugOpen);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const stepFilterSet = useMemo(() => new Set(totalStepFilters), [totalStepFilters]);
 
   const shown: ShownLine[] = useMemo(() => {
     if (!build) return [];
@@ -35,9 +37,10 @@ export function TotalPage() {
     lines.forEach((l, i) => {
       const evs = build.hist.get(l.path) ?? [];
       const real = evs.filter((e) => !(hideNoise && e.noise));
-      if (onlyChanged && !real.length) return;
-      if (typeFilters.length && !real.some((e) => typeFilters.includes(e.st))) return;
-      if (minCount > 0 && real.length < minCount) return;
+      const scoped = stepFilterSet.size ? real.filter((e) => stepFilterSet.has(e.i)) : real;
+      if (onlyChanged && !scoped.length) return;
+      if (typeFilters.length && !scoped.some((e) => typeFilters.includes(e.st))) return;
+      if (minCount > 0 && scoped.length < minCount) return;
       if (
         tq &&
         !l.text.toLowerCase().includes(tq) &&
@@ -45,11 +48,11 @@ export function TotalPage() {
       ) {
         return;
       }
-      out.push({ l, i, evs: real });
+      out.push({ l, i, evs: scoped });
     });
     // Cap to keep the DOM light even on huge configurations.
     return out.slice(0, 4000);
-  }, [build, hideNoise, onlyChanged, typeFilters, minCount, totalQuery]);
+  }, [build, hideNoise, onlyChanged, typeFilters, minCount, totalQuery, stepFilterSet]);
 
   const totalChangeIdx = useMemo(() => {
     const list: number[] = [];
@@ -122,6 +125,7 @@ export function TotalPage() {
           wrap={wrap}
           steps={bundle.steps}
           variant={variant}
+          hasStepFilter={stepFilterSet.size > 0}
           verdicts={verdicts}
           onSelect={selectPath}
         />
