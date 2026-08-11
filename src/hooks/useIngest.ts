@@ -10,6 +10,13 @@ import {
   readInputList,
 } from '@/services/fs.service';
 import { saveRecent } from '@/services/recents.service';
+import {
+  fetchArtifact,
+  fetchJourney,
+  saveJourneySafe,
+} from '@/services/store.service';
+import { useLlmStore } from '@/store/llmStore';
+import type { LlmVerdict } from '@/types/llm';
 
 /**
  * Wires the three folder-picking modes (native, drag-drop, upload input)
@@ -27,6 +34,9 @@ export function useIngest() {
       try {
         const bundle = buildBundle(name, files);
         loadBundle(bundle);
+        // Persist the raw journey immediately so the derived-artifact saves
+        // that follow have a parent row to hang off. Fire-and-forget.
+        void saveJourneySafe(bundle);
         return true;
       } catch (err) {
         fail(err instanceof Error ? err.message : String(err));
@@ -66,6 +76,55 @@ export function useIngest() {
       } catch (e) {
         if (e instanceof FolderPermissionError) fail(e.message);
         else fail(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [ingest, fail],
+  );
+
+  /**
+   * Rehydrate a journey directly from Postgres. No disk access — the files
+   * bag stored with the journey is enough to replay the entire pipeline in
+   * the browser. Any previously-saved LLM verdicts are also pulled and
+   * pushed into `llmStore` so the schema page renders immediately without
+   * a second LLM run.
+   */
+  const openStoredJourney = useCallback(
+    async (name: string) => {
+      try {
+        const stored = await fetchJourney(name);
+        if (!stored) {
+          fail('Journey is no longer in the database: ' + name);
+          return;
+        }
+        if (!ingest(stored.name, stored.files)) return;
+
+        // Warm-start the LLM pass from saved verdicts. `useVerdictInvalidation`
+        // runs on the next commit and calls reset(bundle); because we call
+        // reset ourselves here first, that effect sees `forBundle === bundle`
+        // and leaves our verdicts alone.
+        try {
+          const [wpf, exe] = await Promise.all([
+            fetchArtifact<LlmVerdict[]>(name, 'analysis', 'wpf'),
+            fetchArtifact<LlmVerdict[]>(name, 'analysis', 'exe'),
+          ]);
+          const rows: LlmVerdict[] = [
+            ...(Array.isArray(wpf?.payload) ? wpf.payload : []),
+            ...(Array.isArray(exe?.payload) ? exe.payload : []),
+          ];
+          if (rows.length) {
+            // Mark the bundle as "already reset" so the invalidation effect
+            // doesn't wipe our restored verdicts on the next render tick.
+            const bundle = useAppStore.getState().bundle;
+            const llm = useLlmStore.getState();
+            llm.reset(bundle);
+            llm.addVerdicts(rows);
+          }
+        } catch {
+          // Verdicts are a nice-to-have on reopen; missing or malformed rows
+          // shouldn't spoil the ingest itself.
+        }
+      } catch (e) {
+        fail(e instanceof Error ? e.message : String(e));
       }
     },
     [ingest, fail],
@@ -143,6 +202,7 @@ export function useIngest() {
     pickFolder,
     pickUpload,
     openRecent,
+    openStoredJourney,
     onFolderInput,
     onDragOver,
     onDragLeave,

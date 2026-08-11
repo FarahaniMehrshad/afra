@@ -6,6 +6,7 @@ import { StepsPage } from './components/steps/StepsPage';
 import { TotalPage } from './components/total/TotalPage';
 import { SchemaPage } from './components/schema/SchemaPage';
 import { useVerdictInvalidation } from './hooks/useLlmAnalysis';
+import { usePersist } from './hooks/usePersist';
 
 /**
  * The chrome. Everything about *what* to show lives in feature pages;
@@ -16,6 +17,7 @@ export default function App() {
   const loaded = useAppStore((s) => s.bundle !== null);
 
   useVerdictInvalidation();
+  usePersist();
 
   return (
     <div

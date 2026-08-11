@@ -3,17 +3,47 @@
 #   docker compose up --build
 #
 # Prod build served by the Node server on http://localhost:8080, which also
-# hosts the /api/llm proxy so the key never reaches the browser.
+# hosts /api/llm (keys never reach the browser) and /api/store (Postgres).
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: afra-postgres
+    environment:
+      POSTGRES_USER: afra
+      POSTGRES_PASSWORD: afra
+      POSTGRES_DB: afra
+    volumes:
+      - afra_pg_data:/var/lib/postgresql/data
+    ports:
+      # Only exposed for local psql / GUI access; the app talks over the
+      # docker network via the `postgres` service name.
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U afra -d afra"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   afra:
     build:
       context: .
       dockerfile: Dockerfile
     image: afra-diff-analyzer:latest
     container_name: afra
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "8080:8787"
     env_file:
       - path: .env
         required: false
+    environment:
+      # Override the .env DATABASE_URL when running in compose so the container
+      # reaches Postgres by service name rather than localhost.
+      DATABASE_URL: postgres://afra:afra@postgres:5432/afra
     restart: unless-stopped
+
+volumes:
+  afra_pg_data:

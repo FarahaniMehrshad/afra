@@ -1,7 +1,7 @@
 /**
  * Production server: serves the Vite build out of `dist/` and mounts the LLM
- * proxy on the same origin, so the SPA can call `/api/llm/*` with no CORS and
- * no key in the bundle.
+ * proxy plus the persistence API on the same origin, so the SPA can call
+ * `/api/llm/*` and `/api/store/*` with no CORS and no secrets in the bundle.
  *
  *   npm run build && npm start
  *
@@ -13,6 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { createLlmHandler } from './llm.handler.mjs';
+import { createStoreHandler } from './store.handler.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(here, '..', 'dist');
@@ -22,6 +23,7 @@ const app = express();
 app.disable('x-powered-by');
 
 app.use('/api/llm', createLlmHandler(process.env));
+app.use('/api/store', createStoreHandler(process.env));
 
 // Vite emits content-hashed asset names, so they can be cached forever.
 app.use(
