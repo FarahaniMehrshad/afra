@@ -2,13 +2,9 @@ import { useEffect } from 'react';
 import { useAppStore } from '@/store/appStore';
 import { useLlmStore } from '@/store/llmStore';
 import { useBuild } from './useBuild';
-import { useSchema } from './useSchema';
 import { saveArtifactSafe, saveJourneySafe } from '@/services/store.service';
 import { diffTexts } from '@/services/diff.service';
-import { toYamlText } from '@/services/yaml.service';
-import { generateConverter } from '@/services/converter.codegen';
 import type { BuildResult } from '@/types/ir';
-import type { SchemaResult } from '@/types/schema';
 
 /**
  * Auto-persist coordinator. Mounted once at the app root. Subscribes to the
@@ -27,11 +23,9 @@ export function usePersist(): void {
   const bundle = useAppStore((s) => s.bundle);
   const variant = useAppStore((s) => s.variant);
   const stepIdx = useAppStore((s) => s.stepIdx);
-  const converterCode = useAppStore((s) => s.converterCode);
   const verdicts = useLlmStore((s) => s.verdicts);
 
   const build = useBuild();
-  const schemaView = useSchema();
 
   // 1. The journey itself. First save happens the moment a bundle is loaded;
   //    later saves are no-ops because content doesn't change post-ingest, but
@@ -110,54 +104,9 @@ export function usePersist(): void {
     DEBOUNCE_MS,
   );
 
-  // 5. Distilled schema + rendered YAML. All three share a computation so
-  //    they save as one effect.
-  useDebouncedEffect(
-    () => {
-      if (!bundle || !schemaView.schema) return;
-      const s = schemaView.schema;
-      void saveArtifactSafe(bundle.name, 'schema', '', serializeSchema(s), {
-        fieldCount: s.fieldCount,
-      });
-      void saveArtifactSafe(
-        bundle.name,
-        'yaml',
-        'empty',
-        { lines: schemaView.empty, text: toYamlText(schemaView.empty) },
-        { mode: 'empty', lineCount: schemaView.empty.length },
-      );
-      void saveArtifactSafe(
-        bundle.name,
-        'yaml',
-        'sample',
-        { lines: schemaView.sample, text: toYamlText(schemaView.sample) },
-        { mode: 'sample', lineCount: schemaView.sample.length },
-      );
-    },
-    [bundle, schemaView.schema, schemaView.empty, schemaView.sample],
-    DEBOUNCE_MS,
-  );
-
-  // 6. Generated converter code. Also persisted after the user edits it so
-  //    reopening the folder brings back their version rather than the auto-
-  //    generated one.
-  useDebouncedEffect(
-    () => {
-      if (!bundle || !schemaView.schema) return;
-      const generated = generateConverter(schemaView.schema, bundle.name);
-      const code = converterCode ?? generated;
-      void saveArtifactSafe(
-        bundle.name,
-        'converter',
-        // No natural per-variant split: the schema is unified.
-        '',
-        { code, generated, isEdited: converterCode !== null },
-        { bytes: code.length, isEdited: converterCode !== null },
-      );
-    },
-    [bundle, schemaView.schema, converterCode],
-    DEBOUNCE_MS,
-  );
+  // The old JSON-to-YML persistence (schema, yaml, converter artefacts) has
+  // been removed alongside the deterministic converter itself. When the new
+  // LLM-driven JSON-to-YML flow lands, its outputs get new effects here.
 }
 
 /**
@@ -177,9 +126,9 @@ function useDebouncedEffect(
 }
 
 /* ------------------------- Serialisers ----------------------------------- */
-// The domain has a few `Map`/`Set` fields that don't survive JSON.stringify
-// on their own. Each serialiser produces a plain-object shape that
-// round-trips through the store.
+// The domain has a few `Map` fields that don't survive JSON.stringify on
+// their own. Each serialiser produces a plain-object shape that round-trips
+// through the store.
 
 function serializeBuild(b: BuildResult): unknown {
   return {
@@ -188,14 +137,5 @@ function serializeBuild(b: BuildResult): unknown {
     mergedLines: b.mergedLines,
     counts: b.counts,
     hist: Array.from(b.hist.entries()),
-  };
-}
-
-function serializeSchema(s: SchemaResult): unknown {
-  return {
-    root: s.root,
-    selected: Array.from(s.selected),
-    fieldCount: s.fieldCount,
-    // `index` is derivable from `root`, no reason to double-store it.
   };
 }

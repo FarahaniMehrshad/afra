@@ -1,20 +1,38 @@
 import { ROW_HEIGHT } from '@/constants';
-import type { Variant } from '@/types/journey';
 import type { YamlLine } from '@/types/schema';
 
 interface Props {
   lines: YamlLine[];
   selCanon: string | null;
   onSelect: (canon: string) => void;
+  /** Line-number offset — used so wpf lines number 1..N and exe continues from there. */
+  startNumber?: number;
 }
 
-/** The generated YAML, one clickable line per canonical path. */
-export function YamlList({ lines, selCanon, onSelect }: Props) {
+/**
+ * Renders one YAML pane. There's one instance per variant on the schema
+ * page, so the variant is a property of the enclosing section header
+ * rather than a per-line tag.
+ */
+export function YamlList({ lines, selCanon, onSelect, startNumber = 1 }: Props) {
+  if (!lines.length) {
+    return (
+      <div
+        style={{
+          padding: '18px 24px',
+          fontFamily: 'IBM Plex Mono, monospace',
+          fontSize: 11.5,
+          color: '#5f7292',
+        }}
+      >
+        No document to render — this variant has no readable step.
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
-        flex: 1,
-        overflow: 'auto',
         fontFamily: 'IBM Plex Mono, monospace',
         fontSize: 12,
         lineHeight: ROW_HEIGHT + 'px',
@@ -30,25 +48,12 @@ export function YamlList({ lines, selCanon, onSelect }: Props) {
               className="afra-row-outline"
               style={{
                 display: 'grid',
-                gridTemplateColumns: '68px 52px 1fr',
+                gridTemplateColumns: '52px 1fr',
                 height: ROW_HEIGHT,
                 cursor: 'pointer',
                 background: sel ? 'rgba(79,141,253,0.20)' : 'transparent',
               }}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 3,
-                  paddingLeft: 10,
-                  overflow: 'hidden',
-                }}
-              >
-                {l.variants.map((v) => (
-                  <VariantTag key={v} variant={v} />
-                ))}
-              </div>
               <div
                 style={{
                   textAlign: 'right',
@@ -57,13 +62,26 @@ export function YamlList({ lines, selCanon, onSelect }: Props) {
                   userSelect: 'none',
                 }}
               >
-                {i + 1}
+                {startNumber + i}
               </div>
               <div
                 style={{
                   padding: '0 10px',
                   whiteSpace: 'pre',
-                  color: sel ? '#eef3ff' : l.selected ? '#c8d6ec' : '#8496b3',
+                  color: sel
+                    ? '#eef3ff'
+                    : l.aliasOf
+                      ? '#8fb3ee'
+                      : l.selected
+                        ? '#c8d6ec'
+                        : '#8496b3',
+                  // Aliased lines get a subtle background so operators can spot
+                  // the "this is a reference, not the definition" cue quickly.
+                  backgroundColor: l.aliasOf
+                    ? 'rgba(79,141,253,0.06)'
+                    : l.anchor
+                      ? 'rgba(52,170,120,0.04)'
+                      : undefined,
                 }}
               >
                 {l.text}
@@ -73,30 +91,5 @@ export function YamlList({ lines, selCanon, onSelect }: Props) {
         })}
       </div>
     </div>
-  );
-}
-
-const TAG_COLORS: Record<Variant, { bg: string; fg: string }> = {
-  wpf: { bg: 'rgba(79,141,253,0.18)', fg: '#9cc0ff' },
-  exe: { bg: 'rgba(52,170,120,0.16)', fg: '#7ee0b0' },
-};
-
-function VariantTag({ variant }: { variant: Variant }) {
-  const c = TAG_COLORS[variant];
-  return (
-    <span
-      title={'present in the ' + variant + ' configuration'}
-      style={{
-        fontSize: 9.5,
-        lineHeight: '14px',
-        padding: '0 5px',
-        borderRadius: 5,
-        background: c.bg,
-        color: c.fg,
-        flex: 'none',
-      }}
-    >
-      {variant}
-    </span>
   );
 }

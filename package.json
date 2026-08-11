@@ -15,6 +15,8 @@
     "node": ">=20.12"
   },
   "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.1.0",
+    "@fontsource/ibm-plex-sans": "^5.1.0",
     "express": "^5.2.1",
     "pg": "^8.13.1",
     "react": "^18.3.1",

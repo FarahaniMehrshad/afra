@@ -24,7 +24,6 @@ export function ConverterPanel({ generated, onClose }: Props) {
   const bundle = useAppStore((s) => s.bundle);
   const edited = useAppStore((s) => s.converterCode);
   const setCode = useAppStore((s) => s.setConverterCode);
-  const yamlMode = useAppStore((s) => s.yamlMode);
 
   const [variant, setVariant] = useState<Variant>('wpf');
   const [stepIdx, setStepIdx] = useState<number>(-1);
@@ -48,8 +47,8 @@ export function ConverterPanel({ generated, onClose }: Props) {
   const input = activeIdx >= 0 ? docs[activeIdx].obj : null;
 
   const result = useMemo(
-    () => runConverter(code, input, { emptyArrays: yamlMode === 'empty' }),
-    [code, input, yamlMode],
+    () => runConverter(code, input),
+    [code, input],
   );
 
   const inputJson = input ? JSON.stringify(input, null, 2) : '';
@@ -110,8 +109,7 @@ export function ConverterPanel({ generated, onClose }: Props) {
               )}
             </div>
             <div style={{ fontSize: 11.5, color: '#7f92b0', marginTop: 2 }}>
-              runs as you type · keeps every array element, unlike the collapsed
-              document on the page
+              runs as you type · same rules as the sample panes on the page
             </div>
           </div>
           <span style={{ flex: 1 }} />

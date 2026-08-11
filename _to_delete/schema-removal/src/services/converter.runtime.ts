@@ -11,17 +11,9 @@ export interface ConverterRun {
   error: string | null;
 }
 
-interface ConvertOptions {
-  emptyArrays: boolean;
-}
+type ConvertFn = (config: unknown) => unknown;
 
-type ConvertFn = (config: unknown, options: ConvertOptions) => unknown;
-
-export function runConverter(
-  code: string,
-  config: unknown,
-  options: ConvertOptions,
-): ConverterRun {
+export function runConverter(code: string, config: unknown): ConverterRun {
   let convert: ConvertFn;
   try {
     const factory = new Function(
@@ -31,7 +23,7 @@ export function runConverter(
     if (!fn) {
       return {
         yaml: '',
-        error: 'The code has to declare a function named convert(config, options).',
+        error: 'The code has to declare a function named convert(config).',
       };
     }
     convert = fn;
@@ -40,9 +32,12 @@ export function runConverter(
   }
 
   try {
-    const out = convert(config, options);
+    const out = convert(config);
     if (typeof out !== 'string') {
-      return { yaml: '', error: 'convert() returned ' + describe(out) + ', not a string.' };
+      return {
+        yaml: '',
+        error: 'convert() returned ' + describe(out) + ', not a string.',
+      };
     }
     return { yaml: out, error: null };
   } catch (e) {

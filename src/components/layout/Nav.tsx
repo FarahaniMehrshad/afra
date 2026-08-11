@@ -5,7 +5,6 @@ const TABS: { id: Page; label: string }[] = [
   { id: 'ingest', label: 'Ingest' },
   { id: 'steps', label: 'Steps diff' },
   { id: 'total', label: 'Total diff' },
-  { id: 'schema', label: 'JSON to YML' },
 ];
 
 /** Page switcher. */

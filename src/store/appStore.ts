@@ -6,7 +6,6 @@ import type {
   Variant,
 } from '@/types/journey';
 import type { EventKind } from '@/types/ir';
-import type { YamlMode } from '@/types/schema';
 
 /**
  * Central state store. UI components subscribe with narrow selectors so
@@ -39,14 +38,6 @@ export interface AppState {
   /** Minimum change-count filter in the merged view. */
   minCount: number;
 
-  /** Which of the two generated YAML documents the JSON-to-YML page shows. */
-  yamlMode: YamlMode;
-  /** Selected canonical path on the JSON-to-YML page. */
-  selCanon: string | null;
-  converterOpen: boolean;
-  /** Edited converter source. `null` means "whatever was generated". */
-  converterCode: string | null;
-
   error: string;
   dragOver: boolean;
 
@@ -68,10 +59,6 @@ export interface AppState {
   setDiffQuery: (q: string) => void;
   setTotalQuery: (q: string) => void;
   selectPath: (p: string | null) => void;
-  setYamlMode: (m: YamlMode) => void;
-  selectCanon: (c: string | null) => void;
-  setConverterOpen: (v: boolean) => void;
-  setConverterCode: (c: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -89,10 +76,6 @@ export const useAppStore = create<AppState>((set) => ({
   onlyChanged: false,
   typeFilters: [],
   minCount: 0,
-  yamlMode: 'sample',
-  selCanon: null,
-  converterOpen: false,
-  converterCode: null,
   error: '',
   dragOver: false,
 
@@ -102,11 +85,6 @@ export const useAppStore = create<AppState>((set) => ({
       page: 'steps',
       stepIdx: bundle.steps.length > 1 ? 1 : 0,
       selPath: null,
-      selCanon: null,
-      converterOpen: false,
-      // A new journey means a new field list, so any edits are about a
-      // converter that no longer exists.
-      converterCode: null,
       error: '',
       dragOver: false,
     }),
@@ -133,8 +111,4 @@ export const useAppStore = create<AppState>((set) => ({
   setDiffQuery: (q) => set({ diffQuery: q }),
   setTotalQuery: (q) => set({ totalQuery: q }),
   selectPath: (p) => set({ selPath: p }),
-  setYamlMode: (m) => set({ yamlMode: m }),
-  selectCanon: (c) => set({ selCanon: c }),
-  setConverterOpen: (v) => set({ converterOpen: v }),
-  setConverterCode: (c) => set({ converterCode: c }),
 }));

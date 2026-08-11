@@ -100,8 +100,17 @@ async function dispatch(env, req, res) {
   }
 
   // /journeys/:name/artifacts/:kind
+  //
+  // With a trailing slash the client is really addressing the empty-key
+  // artifact of this kind (schema, converter, etc. store a single row per
+  // journey with `key = ''`). The route stripping above dropped the slash,
+  // so a PUT/DELETE without a key segment lands here — dispatch to the
+  // single-artifact handlers with key='' rather than the 405 the old code
+  // returned. GET keeps its "list all keys of that kind" meaning.
   if (parts.length === 4) {
     if (method === 'GET') return listArtifactsOfKind(env, res, name, kind);
+    if (method === 'PUT') return upsertArtifact(env, req, res, name, kind, '');
+    if (method === 'DELETE') return deleteArtifact(env, res, name, kind, '');
     return methodNotAllowed(res, method);
   }
 

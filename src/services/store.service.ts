@@ -59,14 +59,16 @@ export interface StoredArtifact<T = unknown> {
 }
 
 /** Kinds of artefact the app currently produces. Free-form on the server. */
+/**
+ * Kinds of artefact currently produced. Free-form on the server (the DB has
+ * no enum); this list is what the client asks for. Extend when a new pipeline
+ * lands.
+ */
 export type ArtifactKind =
   | 'build'
   | 'step-diff'
   | 'total-diff'
-  | 'analysis'
-  | 'schema'
-  | 'converter'
-  | 'yaml';
+  | 'analysis';
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);

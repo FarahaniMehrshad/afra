@@ -122,7 +122,7 @@ src/
 │   ├── llm.prompt.ts       # batch → system / user messages
 │   ├── llm.service.ts      # /api/llm transport + reply parsing
 │   ├── schema.service.ts   # verdicts + builds → canonical UI-field tree
-│   ├── yaml.service.ts     # tree → YAML lines carrying their canonical path
+│   ├── sampleYaml.service.ts # picked raw JSON → per-variant sample YAML lines
 │   ├── converter.codegen.ts# tree → standalone JS converter source
 │   ├── converter.runtime.ts# compiles and runs the edited converter
 │   └── download.util.ts
@@ -147,7 +147,7 @@ src/
     ├── total/      TotalPage, TotalToolbar, MergedList, HistoryPanel,
     │               LlmControls, LlmDebugPanel
     ├── schema/     SchemaPage, SchemaToolbar, YamlList, MappingPanel,
-    │               ConverterPanel, NeedsAnalysis
+    │               CompactionPanel, ConverterPanel, NeedsAnalysis
     └── ui/         Segmented, Toggle, IconButton
 ```
 
