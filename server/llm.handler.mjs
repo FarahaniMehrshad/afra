@@ -18,12 +18,21 @@ const DEFAULT_MODEL = 'gpt-4o-mini';
 const DEFAULT_PATHS_PER_BATCH = 60;
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 const UPSTREAM_TIMEOUT_MS = 180_000;
+/**
+ * Ceiling on the completion. Each verdict is ~120–180 tokens (path + short
+ * reason); at the default batch of 60 that fits comfortably under 16 k with
+ * headroom for a longer reason. Without an explicit cap some providers
+ * default as low as 4 k, which truncates mid-JSON and reads to the client as
+ * "the model omitted these paths".
+ */
+const DEFAULT_MAX_TOKENS = 16_000;
 
 export function readLlmConfig(env) {
   const baseUrl = (env.LLM_BASE_URL ?? '').trim().replace(/\/+$/, '');
   const apiKey = (env.LLM_API_KEY ?? '').trim();
   const model = (env.LLM_MODEL ?? '').trim() || DEFAULT_MODEL;
   const batch = Number.parseInt(env.LLM_PATHS_PER_BATCH ?? '', 10);
+  const maxTok = Number.parseInt(env.LLM_MAX_TOKENS ?? '', 10);
   const logDir = (env.LLM_LOG_DIR ?? '').trim();
   return {
     baseUrl,
@@ -31,6 +40,7 @@ export function readLlmConfig(env) {
     model,
     pathsPerBatch:
       Number.isFinite(batch) && batch > 0 ? batch : DEFAULT_PATHS_PER_BATCH,
+    maxTokens: Number.isFinite(maxTok) && maxTok > 0 ? maxTok : DEFAULT_MAX_TOKENS,
     logDir: logDir ? resolvePath(logDir) : '',
   };
 }
@@ -134,6 +144,7 @@ function health(cfg) {
     model: cfg.model,
     host,
     pathsPerBatch: cfg.pathsPerBatch,
+    maxTokens: cfg.maxTokens,
     logging: Boolean(cfg.logDir),
     logDir: cfg.logDir || null,
   };
@@ -165,6 +176,14 @@ async function analyze(env, req, res) {
   const payload = {
     model: typeof body.model === 'string' && body.model ? body.model : cfg.model,
     temperature: typeof body.temperature === 'number' ? body.temperature : 0,
+    // Explicit cap. Without it some OpenAI-compatible providers default to a
+    // ~4 k completion limit which cuts long verdict lists off mid-JSON —
+    // the client then sees every trailing path as "Model reply omitted this
+    // path." even though `finish_reason` was `length`.
+    max_tokens:
+      typeof body.max_tokens === 'number' && body.max_tokens > 0
+        ? body.max_tokens
+        : cfg.maxTokens,
     response_format: { type: 'json_object' },
     messages: [
       ...(system ? [{ role: 'system', content: system }] : []),

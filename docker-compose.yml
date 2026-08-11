@@ -43,6 +43,15 @@ services:
       # Override the .env DATABASE_URL when running in compose so the container
       # reaches Postgres by service name rather than localhost.
       DATABASE_URL: postgres://afra:afra@postgres:5432/afra
+      # Pin the debug-log dir to a path we mount below so log files land on
+      # the host filesystem instead of the container's writable layer (where
+      # `docker compose down` would silently discard them).
+      LLM_LOG_DIR: /app/logs
+    volumes:
+      # Container writes → host at ./logs. The Node server does `mkdirSync` on
+      # first request, so the host dir is created on demand and doesn't need
+      # to exist ahead of time.
+      - ./logs:/app/logs
     restart: unless-stopped
 
 volumes:
