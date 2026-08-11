@@ -7,20 +7,25 @@ export type ImpactDerivedCategory = Extract<
   'derived' | 'random-id' | 'timestamp' | 'environment' | 'unknown'
 >;
 
+export type ImpactMergeMode = 'off' | 'within' | 'across';
+
 export interface ConcretePathChange {
   path: string;
   event: HistoryEvent;
+  variant: Variant;
 }
 
 export interface DerivedChange {
   path: string;
   category: ImpactDerivedCategory | 'unclassified';
   event: HistoryEvent;
+  variant: Variant;
 }
 
 export interface ClusterSibling {
   canonical: string;
   concretePaths: string[];
+  variant: Variant;
 }
 
 export interface UiFieldStepOccurrence {
@@ -55,7 +60,8 @@ export interface UiFieldEntry {
 }
 
 export interface UiFieldImpact {
-  variant: Variant;
+  variant: Variant | 'combined';
+  label: string;
   entries: UiFieldEntry[];
   totals: {
     fields: number;

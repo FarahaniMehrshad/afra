@@ -2,6 +2,7 @@ import { useAppStore } from '@/store/appStore';
 import { Segmented } from '@/components/ui/Segmented';
 import { Toggle } from '@/components/ui/Toggle';
 import type { EventKind } from '@/types/ir';
+import type { ImpactMergeMode } from '@/types/impact';
 import { COLORS } from '@/constants';
 
 interface Props {
@@ -19,6 +20,24 @@ const KIND_OPTIONS: {
   { value: 'remove', label: 'rem', color: COLORS.remove, title: 'show remove events' },
 ];
 
+const MERGE_OPTIONS: {
+  value: ImpactMergeMode;
+  label: string;
+  title: string;
+}[] = [
+  { value: 'off', label: 'merge: off', title: 'No merge' },
+  {
+    value: 'within',
+    label: 'merge: within',
+    title: 'Merge same-value rows inside each variant',
+  },
+  {
+    value: 'across',
+    label: 'merge: across',
+    title: 'Merge same-value rows across wpf and exe',
+  },
+];
+
 export function ImpactToolbar({ summaryLabel }: Props) {
   const impactQuery = useAppStore((s) => s.impactQuery);
   const setImpactQuery = useAppStore((s) => s.setImpactQuery);
@@ -28,8 +47,8 @@ export function ImpactToolbar({ summaryLabel }: Props) {
   const toggleIncludeRandomId = useAppStore((s) => s.toggleImpactIncludeRandomId);
   const includeUnclassified = useAppStore((s) => s.impactIncludeUnclassified);
   const toggleIncludeUnclassified = useAppStore((s) => s.toggleImpactIncludeUnclassified);
-  const mergeDerived = useAppStore((s) => s.impactMergeDerived);
-  const toggleMergeDerived = useAppStore((s) => s.toggleImpactMergeDerived);
+  const mergeMode = useAppStore((s) => s.impactMergeMode);
+  const setMergeMode = useAppStore((s) => s.setImpactMergeMode);
 
   return (
     <div
@@ -79,13 +98,12 @@ export function ImpactToolbar({ summaryLabel }: Props) {
       >
         include unclassified
       </Toggle>
-      <Toggle
-        active={mergeDerived}
-        onClick={toggleMergeDerived}
-        title="Collapse same step/kind/value rows so one representative owns derived changes."
-      >
-        merge same-value fields
-      </Toggle>
+      <Segmented<ImpactMergeMode>
+        options={MERGE_OPTIONS}
+        isActive={(v) => v === mergeMode}
+        onSelect={setMergeMode}
+        small
+      />
 
       <input
         value={impactQuery}

@@ -6,6 +6,7 @@ import type {
   Variant,
 } from '@/types/journey';
 import type { EventKind } from '@/types/ir';
+import type { ImpactMergeMode } from '@/types/impact';
 
 /**
  * Central state store. UI components subscribe with narrow selectors so
@@ -47,8 +48,8 @@ export interface AppState {
   impactIncludeRandomId: boolean;
   /** Show paths with no verdict in impact rows. */
   impactIncludeUnclassified: boolean;
-  /** Merge same-value UI events under one representative row. */
-  impactMergeDerived: boolean;
+  /** Merge strategy for UI-impact rows. */
+  impactMergeMode: ImpactMergeMode;
 
   error: string;
   dragOver: boolean;
@@ -76,7 +77,7 @@ export interface AppState {
   toggleImpactKind: (t: EventKind) => void;
   toggleImpactIncludeRandomId: () => void;
   toggleImpactIncludeUnclassified: () => void;
-  toggleImpactMergeDerived: () => void;
+  setImpactMergeMode: (m: ImpactMergeMode) => void;
   selectPath: (p: string | null) => void;
 }
 
@@ -100,7 +101,7 @@ export const useAppStore = create<AppState>((set) => ({
   impactKinds: [],
   impactIncludeRandomId: false,
   impactIncludeUnclassified: false,
-  impactMergeDerived: false,
+  impactMergeMode: 'off',
   error: '',
   dragOver: false,
 
@@ -154,7 +155,6 @@ export const useAppStore = create<AppState>((set) => ({
     set((s) => ({ impactIncludeRandomId: !s.impactIncludeRandomId })),
   toggleImpactIncludeUnclassified: () =>
     set((s) => ({ impactIncludeUnclassified: !s.impactIncludeUnclassified })),
-  toggleImpactMergeDerived: () =>
-    set((s) => ({ impactMergeDerived: !s.impactMergeDerived })),
+  setImpactMergeMode: (m) => set({ impactMergeMode: m }),
   selectPath: (p) => set({ selPath: p }),
 }));

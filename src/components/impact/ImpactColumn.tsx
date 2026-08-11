@@ -1,11 +1,12 @@
 import type { EventKind } from '@/types/ir';
 import type { UiFieldImpact } from '@/types/impact';
+import type { Variant } from '@/types/journey';
 import { ImpactFieldCard } from './ImpactFieldCard';
 
 interface Props {
   impact: UiFieldImpact;
   kinds: EventKind[];
-  onPathClick: (path: string) => void;
+  onPathClick: (path: string, variant: Variant) => void;
 }
 
 export function ImpactColumn({
@@ -42,7 +43,7 @@ export function ImpactColumn({
             textTransform: 'uppercase',
           }}
         >
-          {impact.variant}
+          {impact.label}
         </span>
         <span
           style={{

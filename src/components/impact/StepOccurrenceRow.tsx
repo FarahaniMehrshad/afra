@@ -1,12 +1,13 @@
 import { COLORS } from '@/constants';
 import type { EventKind } from '@/types/ir';
 import type { UiFieldStepOccurrence } from '@/types/impact';
+import type { Variant } from '@/types/journey';
 import { DerivedList } from './DerivedList';
 
 interface Props {
   kind: EventKind;
   row: UiFieldStepOccurrence;
-  onPathClick: (path: string) => void;
+  onPathClick: (path: string, variant: Variant) => void;
 }
 
 export function StepOccurrenceRow({
@@ -15,6 +16,8 @@ export function StepOccurrenceRow({
   onPathClick,
 }: Props) {
   const accent = kind === 'add' ? COLORS.add : kind === 'remove' ? COLORS.remove : COLORS.modify;
+  const variantsInRow = new Set(row.concretePaths.map((p) => p.variant));
+  const showVariantPill = variantsInRow.size > 1;
 
   return (
     <div
@@ -56,7 +59,7 @@ export function StepOccurrenceRow({
         {row.concretePaths.map((item, idx) => (
           <button
             key={item.path + idx}
-            onClick={() => onPathClick(item.path)}
+            onClick={() => onPathClick(item.path, item.variant)}
             className="afra-btn afra-row-outline"
             style={{
               textAlign: 'left',
@@ -70,7 +73,10 @@ export function StepOccurrenceRow({
             }}
             title={item.path}
           >
-            <div style={{ color: '#8ea6c5', marginBottom: 3 }}>{changeText(item.event)}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+              {showVariantPill && <VariantPill variant={item.variant} />}
+              <div style={{ color: '#8ea6c5' }}>{changeText(item.event)}</div>
+            </div>
             <div style={{ wordBreak: 'break-all' }}>{item.path}</div>
           </button>
         ))}
@@ -104,7 +110,7 @@ export function StepOccurrenceRow({
                 className="afra-btn afra-row-outline"
                 onClick={() => {
                   const path = s.concretePaths[0];
-                  if (path) onPathClick(path);
+                  if (path) onPathClick(path, s.variant);
                 }}
                 style={{
                   textAlign: 'left',
@@ -118,7 +124,8 @@ export function StepOccurrenceRow({
                 }}
                 title={s.concretePaths[0] ?? s.canonical}
               >
-                {s.canonical}
+                <VariantPill variant={s.variant} />
+                <span style={{ marginLeft: 6 }}>{s.canonical}</span>
                 <span style={{ marginLeft: 6, color: '#7f94b1' }}>
                   ({s.concretePaths.length} path{s.concretePaths.length > 1 ? 's' : ''})
                 </span>
@@ -137,4 +144,24 @@ function changeText(e: UiFieldStepOccurrence['concretePaths'][number]['event']):
   if (e.st === 'add') return '= ' + (e.to ?? 'null');
   if (e.st === 'remove') return '= ' + (e.from ?? 'null');
   return (e.from ?? 'null') + ' → ' + (e.to ?? 'null');
+}
+
+function VariantPill({ variant }: { variant: Variant }) {
+  const bg = variant === 'wpf' ? 'rgba(79,141,253,0.20)' : 'rgba(160,118,240,0.20)';
+  const fg = variant === 'wpf' ? '#cfe0ff' : '#dbc8ff';
+  return (
+    <span
+      style={{
+        fontFamily: 'IBM Plex Mono, monospace',
+        fontSize: 9.5,
+        lineHeight: '14px',
+        padding: '0 5px',
+        borderRadius: 5,
+        background: bg,
+        color: fg,
+      }}
+    >
+      {variant}
+    </span>
+  );
 }

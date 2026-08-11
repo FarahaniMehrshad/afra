@@ -15,7 +15,7 @@ export function ImpactPage() {
   const setPage = useAppStore((s) => s.setPage);
   const setVariant = useAppStore((s) => s.setVariant);
   const selectPath = useAppStore((s) => s.selectPath);
-  const { wpf, exe, hasVerdicts, hasBothVariants } = useUiFieldImpact();
+  const { mode, wpf, exe, combined, hasVerdicts, hasBothVariants } = useUiFieldImpact();
 
   const fwpf = useMemo(
     () => (wpf ? filterImpact(wpf, impactQuery, impactKinds) : null),
@@ -25,13 +25,26 @@ export function ImpactPage() {
     () => (exe ? filterImpact(exe, impactQuery, impactKinds) : null),
     [exe, impactQuery, impactKinds],
   );
+  const fcombined = useMemo(
+    () => (combined ? filterImpact(combined, impactQuery, impactKinds) : null),
+    [combined, impactQuery, impactKinds],
+  );
 
   const summaryLabel = useMemo(() => {
-    const fields = (fwpf?.totals.fields ?? 0) + (fexe?.totals.fields ?? 0);
-    const events = (fwpf?.totals.occurrences ?? 0) + (fexe?.totals.occurrences ?? 0);
-    const derived = (fwpf?.totals.derived ?? 0) + (fexe?.totals.derived ?? 0);
+    const fields =
+      mode === 'across'
+        ? (fcombined?.totals.fields ?? 0)
+        : (fwpf?.totals.fields ?? 0) + (fexe?.totals.fields ?? 0);
+    const events =
+      mode === 'across'
+        ? (fcombined?.totals.occurrences ?? 0)
+        : (fwpf?.totals.occurrences ?? 0) + (fexe?.totals.occurrences ?? 0);
+    const derived =
+      mode === 'across'
+        ? (fcombined?.totals.derived ?? 0)
+        : (fwpf?.totals.derived ?? 0) + (fexe?.totals.derived ?? 0);
     return fields + ' fields · ' + events + ' events · ' + derived + ' derived';
-  }, [fwpf, fexe]);
+  }, [mode, fcombined, fwpf, fexe]);
 
   if (!bundle) return null;
 
@@ -79,7 +92,7 @@ export function ImpactPage() {
   return (
     <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
       <ImpactToolbar summaryLabel={summaryLabel} />
-      {!hasBothVariants && (
+      {!hasBothVariants && mode !== 'across' && (
         <div
           style={{
             flex: 'none',
@@ -93,19 +106,37 @@ export function ImpactPage() {
         </div>
       )}
       <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
-        {fwpf && (
-          <ImpactColumn
-            impact={fwpf}
-            kinds={impactKinds}
-            onPathClick={(path) => jumpToPath(path, 'wpf', setVariant, selectPath, setPage)}
-          />
-        )}
-        {fexe && (
-          <ImpactColumn
-            impact={fexe}
-            kinds={impactKinds}
-            onPathClick={(path) => jumpToPath(path, 'exe', setVariant, selectPath, setPage)}
-          />
+        {mode === 'across' ? (
+          fcombined && (
+            <ImpactColumn
+              impact={fcombined}
+              kinds={impactKinds}
+              onPathClick={(path, variant) =>
+                jumpToPath(path, variant, setVariant, selectPath, setPage)
+              }
+            />
+          )
+        ) : (
+          <>
+            {fwpf && (
+              <ImpactColumn
+                impact={fwpf}
+                kinds={impactKinds}
+                onPathClick={(path, variant) =>
+                  jumpToPath(path, variant, setVariant, selectPath, setPage)
+                }
+              />
+            )}
+            {fexe && (
+              <ImpactColumn
+                impact={fexe}
+                kinds={impactKinds}
+                onPathClick={(path, variant) =>
+                  jumpToPath(path, variant, setVariant, selectPath, setPage)
+                }
+              />
+            )}
+          </>
         )}
       </div>
     </div>

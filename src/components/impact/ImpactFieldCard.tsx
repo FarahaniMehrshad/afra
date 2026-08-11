@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react';
 import type { EventKind } from '@/types/ir';
 import type { UiFieldEntry } from '@/types/impact';
+import type { Variant } from '@/types/journey';
 import { StepOccurrenceRow } from './StepOccurrenceRow';
 
 interface Props {
   entry: UiFieldEntry;
   kinds: EventKind[];
-  onPathClick: (path: string) => void;
+  onPathClick: (path: string, variant: Variant) => void;
 }
 
 const ORDER: EventKind[] = ['add', 'modify', 'remove'];
