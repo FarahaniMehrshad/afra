@@ -4,6 +4,7 @@ import { Scrubber } from './components/layout/Scrubber';
 import { IngestPage } from './components/ingest/IngestPage';
 import { StepsPage } from './components/steps/StepsPage';
 import { TotalPage } from './components/total/TotalPage';
+import { ImpactPage } from './components/impact/ImpactPage';
 import { useVerdictInvalidation } from './hooks/useLlmAnalysis';
 import { usePersist } from './hooks/usePersist';
 
@@ -58,6 +59,7 @@ export default function App() {
         {page === 'ingest' && <IngestPage />}
         {page === 'steps' && loaded && <StepsPage />}
         {page === 'total' && loaded && <TotalPage />}
+        {page === 'impact' && loaded && <ImpactPage />}
       </main>
     </div>
   );

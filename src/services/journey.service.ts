@@ -1,5 +1,6 @@
 import { JOURNEY_INDEX, JOURNEY_MARKDOWN, READABLE_EXTS } from '@/constants';
 import type { FileBag, JourneyBundle, JourneyStep } from '@/types/journey';
+import { normalizePossiblyMojibake } from './text-encoding.service';
 
 /**
  * Ingest utilities — turn a browser-supplied file bag into a validated
@@ -48,14 +49,21 @@ export function parseJourneyIndex(text: string): JourneyStep[] {
  * can pipe the message straight to the UI.
  */
 export function buildBundle(name: string, files: FileBag): JourneyBundle {
-  const jl = files[JOURNEY_INDEX];
-  const md = files[JOURNEY_MARKDOWN];
+  // Re-open flows can load previously-saved rows that were ingested with an
+  // older decoder. Normalize once so both fresh and persisted journeys render.
+  const normalized: FileBag = {};
+  for (const [key, value] of Object.entries(files)) {
+    normalized[key] = normalizePossiblyMojibake(value);
+  }
+
+  const jl = normalized[JOURNEY_INDEX];
+  const md = normalized[JOURNEY_MARKDOWN];
   if (!jl || !md) {
     throw new JourneyIngestError(
       '“' +
         name +
         '” is not a journey folder — journey.md and journey.jsonl must both be present. Found ' +
-        Object.keys(files).length +
+        Object.keys(normalized).length +
         ' readable file(s).',
     );
   }
@@ -63,7 +71,7 @@ export function buildBundle(name: string, files: FileBag): JourneyBundle {
   if (!steps.length) {
     throw new JourneyIngestError('journey.jsonl held no readable step records.');
   }
-  return { name, files, steps, journeyMd: md };
+  return { name, files: normalized, steps, journeyMd: md };
 }
 
 /** True for the extensions the app actually reads. */

@@ -37,6 +37,14 @@ export interface AppState {
   typeFilters: EventKind[];
   /** Minimum change-count filter in the merged view. */
   minCount: number;
+  /** Filter box in the UI-impact toolbar. */
+  impactQuery: string;
+  /** Type filter chips in the UI-impact view. */
+  impactKinds: EventKind[];
+  /** Show random-id paths alongside derived ones in impact rows. */
+  impactIncludeRandomId: boolean;
+  /** Show paths with no verdict in impact rows. */
+  impactIncludeUnclassified: boolean;
 
   error: string;
   dragOver: boolean;
@@ -58,6 +66,10 @@ export interface AppState {
   setStepQuery: (q: string) => void;
   setDiffQuery: (q: string) => void;
   setTotalQuery: (q: string) => void;
+  setImpactQuery: (q: string) => void;
+  toggleImpactKind: (t: EventKind) => void;
+  toggleImpactIncludeRandomId: () => void;
+  toggleImpactIncludeUnclassified: () => void;
   selectPath: (p: string | null) => void;
 }
 
@@ -76,6 +88,10 @@ export const useAppStore = create<AppState>((set) => ({
   onlyChanged: false,
   typeFilters: [],
   minCount: 0,
+  impactQuery: '',
+  impactKinds: [],
+  impactIncludeRandomId: false,
+  impactIncludeUnclassified: false,
   error: '',
   dragOver: false,
 
@@ -110,5 +126,16 @@ export const useAppStore = create<AppState>((set) => ({
   setStepQuery: (q) => set({ stepQuery: q }),
   setDiffQuery: (q) => set({ diffQuery: q }),
   setTotalQuery: (q) => set({ totalQuery: q }),
+  setImpactQuery: (q) => set({ impactQuery: q }),
+  toggleImpactKind: (t) =>
+    set((s) => ({
+      impactKinds: s.impactKinds.includes(t)
+        ? s.impactKinds.filter((x) => x !== t)
+        : [...s.impactKinds, t],
+    })),
+  toggleImpactIncludeRandomId: () =>
+    set((s) => ({ impactIncludeRandomId: !s.impactIncludeRandomId })),
+  toggleImpactIncludeUnclassified: () =>
+    set((s) => ({ impactIncludeUnclassified: !s.impactIncludeUnclassified })),
   selectPath: (p) => set({ selPath: p }),
 }));

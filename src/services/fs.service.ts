@@ -1,5 +1,6 @@
 import type { FileBag } from '@/types/journey';
 import { isReadable } from './journey.service';
+import { decodeJourneyText } from './text-encoding.service';
 
 /**
  * Adapters for the three browser folder-picking APIs. Each returns
@@ -14,6 +15,11 @@ interface DirEntry {
   name: string;
   kind: 'file' | 'directory';
   getFile(): Promise<File>;
+}
+
+async function readJourneyFileText(file: File): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  return decodeJourneyText(bytes);
 }
 
 /** Minimal shape of the FileSystemDirectoryHandle we depend on. */
@@ -57,7 +63,7 @@ export async function readDirHandle(
     if (entry.kind !== 'file') continue;
     if (!isReadable(name)) continue;
     try {
-      files[name] = await (await entry.getFile()).text();
+      files[name] = await readJourneyFileText(await entry.getFile());
     } catch {
       /* Skip unreadable files silently. */
     }
@@ -92,7 +98,7 @@ export async function readDirEntry(
     const file: File = await new Promise((resolve, reject) =>
       (en as FileSystemFileEntry).file(resolve, reject),
     );
-    files[en.name] = await file.text();
+    files[en.name] = await readJourneyFileText(file);
   }
   return { name: dirEntry.name, files };
 }
@@ -114,7 +120,7 @@ export async function readInputList(
     const parts = rel.split('/');
     if (parts.length > 2) continue;
     if (!isReadable(f.name)) continue;
-    files[f.name] = await f.text();
+    files[f.name] = await readJourneyFileText(f);
   }
   return { name: root, files };
 }

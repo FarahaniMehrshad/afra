@@ -1,6 +1,8 @@
 /* AFRA global styles — extracted from the design's <helmet> block. */
 :root {
   color-scheme: dark;
+  --afra-font-sans: 'IBM Plex Sans', 'Vazirmatn', 'Noto Sans Arabic', 'Segoe UI', Tahoma, system-ui, sans-serif;
+  --afra-font-mono: 'IBM Plex Mono', 'Vazirmatn', 'Noto Sans Arabic', 'Segoe UI', Tahoma, monospace;
 }
 
 html,
@@ -13,10 +15,15 @@ body,
 }
 
 body {
-  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-family: var(--afra-font-sans);
   color: #dbe4f2;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
+}
+
+/* Inline component styles heavily use IBM Plex Mono; ensure Persian glyph fallback there too. */
+[style*='IBM Plex Mono'] {
+  font-family: var(--afra-font-mono) !important;
 }
 
 *,
