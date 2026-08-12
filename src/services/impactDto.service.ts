@@ -132,7 +132,16 @@ function addPath(node: DtoNode, segs: string[], sample: unknown): void {
 
   if (seg === '[]') {
     if (node.t !== 'arr') return;
-    if (isLast) return; // array of unspecified primitive/tuple -> keep empty
+    if (isLast) {
+      // Terminal `[]` means an array element leaf (e.g. Rows/[]/[]).
+      // Keep/seed a representative sample instead of emitting empty arrays only.
+      if (!node.item) {
+        node.item = { t: 'leaf', sample };
+      } else if (node.item.t === 'leaf' && node.item.sample === null && sample !== null) {
+        node.item.sample = sample;
+      }
+      return;
+    }
     if (!node.item) {
       const next = rest[0];
       if (next === '[]') node.item = { t: 'arr', item: null };
