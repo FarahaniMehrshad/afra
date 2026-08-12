@@ -6,6 +6,7 @@ const TABS: { id: Page; label: string }[] = [
   { id: 'steps', label: 'Steps diff' },
   { id: 'total', label: 'Total diff' },
   { id: 'impact', label: 'UI impact' },
+  { id: 'dto', label: 'Convert to DTO' },
 ];
 
 /** Page switcher. */
