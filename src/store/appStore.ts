@@ -50,6 +50,10 @@ export interface AppState {
   impactIncludeUnclassified: boolean;
   /** Merge strategy for UI-impact rows. */
   impactMergeMode: ImpactMergeMode;
+  /** DTO input text for DTO -> JSON conversion page. */
+  convertDtoText: string;
+  /** Base step ordinal used as comparison document. */
+  convertBaseStepOrdinal: number;
 
   error: string;
   dragOver: boolean;
@@ -78,6 +82,8 @@ export interface AppState {
   toggleImpactIncludeRandomId: () => void;
   toggleImpactIncludeUnclassified: () => void;
   setImpactMergeMode: (m: ImpactMergeMode) => void;
+  setConvertDtoText: (text: string) => void;
+  setConvertBaseStepOrdinal: (ordinal: number) => void;
   selectPath: (p: string | null) => void;
 }
 
@@ -102,6 +108,8 @@ export const useAppStore = create<AppState>((set) => ({
   impactIncludeRandomId: false,
   impactIncludeUnclassified: false,
   impactMergeMode: 'off',
+  convertDtoText: '',
+  convertBaseStepOrdinal: 1,
   error: '',
   dragOver: false,
 
@@ -112,6 +120,8 @@ export const useAppStore = create<AppState>((set) => ({
       stepIdx: bundle.steps.length > 1 ? 1 : 0,
       selPath: null,
       totalStepFilters: [],
+      convertBaseStepOrdinal: bundle.steps[0]?.ordinal ?? 1,
+      convertDtoText: '',
       error: '',
       dragOver: false,
     }),
@@ -156,5 +166,7 @@ export const useAppStore = create<AppState>((set) => ({
   toggleImpactIncludeUnclassified: () =>
     set((s) => ({ impactIncludeUnclassified: !s.impactIncludeUnclassified })),
   setImpactMergeMode: (m) => set({ impactMergeMode: m }),
+  setConvertDtoText: (text) => set({ convertDtoText: text }),
+  setConvertBaseStepOrdinal: (ordinal) => set({ convertBaseStepOrdinal: ordinal }),
   selectPath: (p) => set({ selPath: p }),
 }));

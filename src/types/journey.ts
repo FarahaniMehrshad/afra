@@ -28,7 +28,7 @@ export interface JourneyBundle {
 export type Variant = 'wpf' | 'exe';
 
 /** UI pages. */
-export type Page = 'ingest' | 'steps' | 'total' | 'impact' | 'dto';
+export type Page = 'ingest' | 'steps' | 'total' | 'impact' | 'dto' | 'convert';
 
 /** Layout mode for the per-step diff pane. */
 export type DiffLayout = 'split' | 'inline';
