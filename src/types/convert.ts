@@ -22,6 +22,13 @@ export interface ElementOp {
   templateEntry: UiFieldEntry;
   mintedIndex?: number;
   dtoElement?: unknown;
+  /**
+   * How strongly identity-alignment justified a REMOVE at `mintedIndex`.
+   * Higher = this index was an alignment orphan (no DTO partner). Unset / 0
+   * means the remove came from plain position pairing and should lose ties
+   * against orphan-backed removes on sibling scopes.
+   */
+  identityConfidence?: number;
 }
 
 export interface VariantOperationPlan {
