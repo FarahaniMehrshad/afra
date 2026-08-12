@@ -14,6 +14,13 @@ interface ReplayInput {
   exeElements: ElementOp[];
   wpfEntries: UiFieldEntry[];
   exeEntries: UiFieldEntry[];
+  /**
+   * Absolute paths the applier already planted (from `dto.applyPlan`). Replay
+   * must not overwrite these so DTO-supplied values stay authoritative. When
+   * omitted we fall back to the coarser "any step-op canonical" guard.
+   */
+  wpfWrittenPaths?: ReadonlySet<string>;
+  exeWrittenPaths?: ReadonlySet<string>;
 }
 
 interface ReplayResult {
@@ -38,6 +45,7 @@ export function replayDerivedChanges(input: ReplayInput): ReplayResult {
     input.wpfFields,
     input.wpfElements,
     input.wpfEntries,
+    input.wpfWrittenPaths,
     warnings,
   );
   const exe = replayForVariant(
@@ -46,6 +54,7 @@ export function replayDerivedChanges(input: ReplayInput): ReplayResult {
     input.exeFields,
     input.exeElements,
     input.exeEntries,
+    input.exeWrittenPaths,
     warnings,
   );
   return {
@@ -62,21 +71,38 @@ function replayForVariant(
   fields: FieldOp[],
   elements: ElementOp[],
   entries: UiFieldEntry[],
+  writtenPaths: ReadonlySet<string> | undefined,
   warnings: string[],
 ): { doc: unknown; applied: number } {
   const groups = collectGroups(fields, elements);
-  const seedCanonical = new Set(entries.map((entry) => entry.canonical));
+  // When applyPlan gave us the exact abs paths it wrote, protect only those
+  // (leaves *and* intermediates) — everything else in a new element is fair
+  // game for historical fill-ins. Falling back to the coarser step-op-canonical
+  // guard used to block valid metadata like ID/Order/ViewUID from being
+  // replayed onto a fresh element.
+  const useWrittenGuard = writtenPaths !== undefined;
+  const seedCanonicalFallback = useWrittenGuard
+    ? null
+    : new Set(entries.map((entry) => entry.canonical));
   let applied = 0;
 
   for (const group of groups) {
-    const template = pickTemplate(group.entry, group.kind);
-    if (!template || !template.derived.length) continue;
-
     const entryRel = toRelativeSegments(group.entry.canonical);
     const arrAt = lastArrayIndex(entryRel);
     if (arrAt < 0) continue;
     const scope = entryRel.slice(0, arrAt + 1);
     const targetElementSegs = splitPath(group.elementParent + '/' + group.elementIndex);
+
+    // Pick a template whose recorded seed value matches the DTO's own value at
+    // this element. Without this hint the picker falls back to "most derived"
+    // and can end up cloning an unrelated historical add (e.g. a Guid column's
+    // add gets replayed onto a Float column's add, planting HasLength=false).
+    const valueHint =
+      group.kind === 'add' || group.kind === 'modify'
+        ? seedValueHintFromDoc(doc, targetElementSegs, entryRel, arrAt)
+        : undefined;
+    const template = pickTemplate(group.entry, group.kind, valueHint);
+    if (!template || !template.derived.length) continue;
 
     for (const derived of template.derived) {
       const rel = toRelativeSegments(canonicalizePath(derived.path));
@@ -85,7 +111,12 @@ function replayForVariant(
       const suffix = rel.slice(scope.length).map((seg) => (seg === '[]' ? '0' : seg));
       const targetSegs = [...targetElementSegs, ...suffix];
       const targetPath = '/' + targetSegs.join('/');
-      if (seedCanonical.has(canonicalizePath(targetPath))) continue;
+
+      if (useWrittenGuard) {
+        if (writtenPaths!.has(targetPath)) continue;
+      } else if (seedCanonicalFallback!.has(canonicalizePath(targetPath))) {
+        continue;
+      }
 
       if (derived.event.st === 'remove') {
         if (deleteAtAbsolutePath(doc, targetPath)) applied++;
@@ -97,7 +128,8 @@ function replayForVariant(
         warnings.push(variant + ': skipped derived value (non-JSON literal) at ' + derived.path);
         continue;
       }
-      if (setAtAbsolutePath(doc, targetPath, value)) applied++;
+      const ok = setAtAbsolutePath(doc, targetPath, value);
+      if (ok) applied++;
     }
   }
 
@@ -139,13 +171,55 @@ function collectGroups(fields: FieldOp[], elements: ElementOp[]): ReplayGroup[] 
 function pickTemplate(
   entry: UiFieldEntry,
   kind: 'add' | 'remove' | 'modify',
+  valueHint: string | undefined,
 ): UiFieldStepOccurrence | null {
   const rows = entry.byKind[kind];
   if (!rows.length) return null;
+
+  if (valueHint !== undefined) {
+    const matches = rows.filter((row) =>
+      row.concretePaths.some((cp) => cp.event.to === valueHint),
+    );
+    if (matches.length) {
+      matches.sort((a, b) => b.derived.length - a.derived.length || b.step - a.step);
+      return matches[0];
+    }
+  }
+
   const sorted = rows
     .slice()
     .sort((a, b) => b.derived.length - a.derived.length || b.step - a.step);
   return sorted[0] ?? null;
+}
+
+/**
+ * Read the DTO/base value at the seed path within the target element and
+ * return its JSON-encoded form so it can be compared to `HistoryEvent.to`.
+ */
+function seedValueHintFromDoc(
+  doc: unknown,
+  elementSegs: string[],
+  entryRel: string[],
+  arrAt: number,
+): string | undefined {
+  const suffix = entryRel.slice(arrAt + 1).map((seg) => (seg === '[]' ? '0' : seg));
+  if (!suffix.length) return undefined;
+  let cur: unknown = doc;
+  for (const seg of [...elementSegs, ...suffix]) {
+    if (Array.isArray(cur)) {
+      if (!/^\d+$/.test(seg)) return undefined;
+      cur = cur[Number(seg)];
+      continue;
+    }
+    if (!cur || typeof cur !== 'object') return undefined;
+    cur = (cur as Record<string, unknown>)[seg];
+  }
+  if (cur === undefined) return undefined;
+  try {
+    return JSON.stringify(cur);
+  } catch {
+    return undefined;
+  }
 }
 
 function lastArrayIndex(segs: string[]): number {

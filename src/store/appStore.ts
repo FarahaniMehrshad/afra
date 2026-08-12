@@ -54,6 +54,8 @@ export interface AppState {
   convertDtoText: string;
   /** Base step ordinal used as comparison document. */
   convertBaseStepOrdinal: number;
+  /** Base step ordinal for the Testing (round-trip) page. */
+  testBaseStepOrdinal: number;
 
   error: string;
   dragOver: boolean;
@@ -84,6 +86,7 @@ export interface AppState {
   setImpactMergeMode: (m: ImpactMergeMode) => void;
   setConvertDtoText: (text: string) => void;
   setConvertBaseStepOrdinal: (ordinal: number) => void;
+  setTestBaseStepOrdinal: (ordinal: number) => void;
   selectPath: (p: string | null) => void;
 }
 
@@ -110,6 +113,7 @@ export const useAppStore = create<AppState>((set) => ({
   impactMergeMode: 'off',
   convertDtoText: '',
   convertBaseStepOrdinal: 1,
+  testBaseStepOrdinal: 1,
   error: '',
   dragOver: false,
 
@@ -122,6 +126,7 @@ export const useAppStore = create<AppState>((set) => ({
       totalStepFilters: [],
       convertBaseStepOrdinal: bundle.steps[0]?.ordinal ?? 1,
       convertDtoText: '',
+      testBaseStepOrdinal: bundle.steps[0]?.ordinal ?? 1,
       error: '',
       dragOver: false,
     }),
@@ -168,5 +173,6 @@ export const useAppStore = create<AppState>((set) => ({
   setImpactMergeMode: (m) => set({ impactMergeMode: m }),
   setConvertDtoText: (text) => set({ convertDtoText: text }),
   setConvertBaseStepOrdinal: (ordinal) => set({ convertBaseStepOrdinal: ordinal }),
+  setTestBaseStepOrdinal: (ordinal) => set({ testBaseStepOrdinal: ordinal }),
   selectPath: (p) => set({ selPath: p }),
 }));

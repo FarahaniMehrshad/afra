@@ -7,6 +7,7 @@ import { TotalPage } from './components/total/TotalPage';
 import { ImpactPage } from './components/impact/ImpactPage';
 import { DtoConvertPage } from './components/dto/DtoConvertPage';
 import { ConvertDtoPage } from './components/convert/ConvertDtoPage';
+import { TestingPage } from './components/testing/TestingPage';
 import { useVerdictInvalidation } from './hooks/useLlmAnalysis';
 import { usePersist } from './hooks/usePersist';
 
@@ -64,6 +65,7 @@ export default function App() {
         {page === 'impact' && loaded && <ImpactPage />}
         {page === 'dto' && loaded && <DtoConvertPage />}
         {page === 'convert' && loaded && <ConvertDtoPage />}
+        {page === 'test' && loaded && <TestingPage />}
       </main>
     </div>
   );

@@ -141,6 +141,7 @@ export function useConvertDto(): UseConvertDtoResult {
       exeDoc,
       wpfEntries,
       exeEntries,
+      acrossEntries,
     });
     const applied = applyOperationPlan({
       plan,

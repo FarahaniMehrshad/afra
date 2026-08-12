@@ -6,6 +6,13 @@ export interface AppliedVariantOps {
   fields: FieldOp[];
   elements: ElementOp[];
   warnings: string[];
+  /**
+   * Absolute JSON paths the applier planted values at. Derived-replay must not
+   * touch these so user-provided DTO values aren't clobbered by historical
+   * fill-ins — for element adds this includes every leaf under the seeded
+   * `dtoElement` subtree.
+   */
+  writtenPaths: Set<string>;
 }
 
 export interface ApplyOperationPlanResult {
@@ -19,6 +26,7 @@ interface ApplyVariantResult {
   appliedFields: FieldOp[];
   appliedElements: ElementOp[];
   warnings: string[];
+  writtenPaths: Set<string>;
 }
 
 interface ApplyOperationPlanInput {
@@ -36,12 +44,14 @@ export function applyOperationPlan(input: ApplyOperationPlanInput): ApplyOperati
       fields: wpf.appliedFields,
       elements: wpf.appliedElements,
       warnings: wpf.warnings,
+      writtenPaths: wpf.writtenPaths,
     },
     exe: {
       doc: exe.doc,
       fields: exe.appliedFields,
       elements: exe.appliedElements,
       warnings: exe.warnings,
+      writtenPaths: exe.writtenPaths,
     },
     warnings: [...input.plan.warnings, ...wpf.warnings, ...exe.warnings],
   };
@@ -53,6 +63,7 @@ function applyVariantPlan(baseDoc: unknown, elements: ElementOp[], fields: Field
   const warnings: string[] = [];
   const appliedElements: ElementOp[] = [];
   const appliedFields: FieldOp[] = [];
+  const writtenPaths = new Set<string>();
 
   const removeElements = elements
     .filter((op) => op.kind === 'remove')
@@ -83,7 +94,11 @@ function applyVariantPlan(baseDoc: unknown, elements: ElementOp[], fields: Field
       continue;
     }
     const idx = smallestUnusedIndex(parent);
-    parent[idx] = cloneJson(op.dtoElement ?? {});
+    const seed = op.dtoElement ?? {};
+    parent[idx] = cloneJson(seed);
+    const elementAbsPath = op.parentArrayPath + '/' + idx;
+    writtenPaths.add(elementAbsPath);
+    collectSubtreePaths(seed, elementAbsPath, writtenPaths);
     appliedElements.push({ ...op, mintedIndex: idx });
   }
 
@@ -95,13 +110,38 @@ function applyVariantPlan(baseDoc: unknown, elements: ElementOp[], fields: Field
     if (op.kind === 'remove') {
       deleteAtAbsolutePath(doc, op.concretePath);
       appliedFields.push(op);
+      writtenPaths.add(op.concretePath);
       continue;
     }
     setAtAbsolutePath(doc, op.concretePath, op.toValue);
     appliedFields.push(op);
+    writtenPaths.add(op.concretePath);
   }
 
-  return { doc, appliedFields, appliedElements, warnings };
+  return { doc, appliedFields, appliedElements, warnings, writtenPaths };
+}
+
+/**
+ * Record every path inside `value` under `basePath` — leaves *and*
+ * intermediate objects/arrays — so replay can distinguish "the DTO explicitly
+ * placed this" from "the DTO said nothing about this".
+ */
+function collectSubtreePaths(value: unknown, basePath: string, out: Set<string>): void {
+  if (value === null || value === undefined) return;
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      const child = basePath + '/' + i;
+      out.add(child);
+      collectSubtreePaths(value[i], child, out);
+    }
+    return;
+  }
+  if (typeof value !== 'object') return;
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    const child = basePath + '/' + k;
+    out.add(child);
+    collectSubtreePaths(v, child, out);
+  }
 }
 
 export function getAtAbsolutePath(root: unknown, path: string): unknown {

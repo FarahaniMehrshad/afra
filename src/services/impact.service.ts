@@ -20,6 +20,14 @@ interface ComputeInput {
   hideNoise: boolean;
   includeCategories?: readonly ImpactDerivedCategory[];
   includeUnclassified?: boolean;
+  /**
+   * When defined, overrides `hideNoise` for the derived-events stream that
+   * gets attached to each occurrence's `.derived`. Entries (i.e. step-op
+   * canonicals) still respect `hideNoise`. Used by the round-trip harness so
+   * replay can plant id/uid/order fields onto new elements even though the
+   * user has noise hidden in the impact UI.
+   */
+  derivedHideNoise?: boolean;
 }
 
 interface EntryBuilder {
@@ -45,17 +53,18 @@ export function computeUiFieldImpact({
   hideNoise,
   includeCategories = DEFAULT_DERIVED_CATEGORIES,
   includeUnclassified = false,
+  derivedHideNoise,
 }: ComputeInput): UiFieldEntry[] {
   if (!build) return [];
 
   const include = new Set<ImpactDerivedCategory>(includeCategories);
   const derivedByStep = new Map<number, DerivedChange[]>();
   const uiEventsByStep = new Map<number, number>();
+  const derivedNoiseFilter = derivedHideNoise ?? hideNoise;
 
   for (const [path, events] of build.hist) {
     const category = verdictCategory(verdicts, variant, path);
     const kept = hideNoise ? events.filter((e) => !e.noise) : events;
-    if (!kept.length) continue;
 
     if (category === STEP_OPERATION) {
       for (const ev of kept) {
@@ -69,7 +78,11 @@ export function computeUiFieldImpact({
       (category !== 'unclassified' && include.has(category));
     if (!shouldInclude) continue;
 
-    for (const ev of kept) {
+    // Derived stream may keep noise the entries loop dropped (see JSDoc).
+    const derivedKept = derivedNoiseFilter ? events.filter((e) => !e.noise) : events;
+    if (!derivedKept.length) continue;
+
+    for (const ev of derivedKept) {
       const bucket = derivedByStep.get(ev.i);
       const row: DerivedChange = { path, category, event: ev, variant };
       if (bucket) bucket.push(row);
