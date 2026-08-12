@@ -5,6 +5,7 @@ import { useConvertDto } from '@/hooks/useConvertDto';
 import { useAppStore } from '@/store/appStore';
 import { diffTexts } from '@/services/diff.service';
 import { download } from '@/services/download.util';
+import { canonicalStringify } from '@/services/jsonCanonical.util';
 
 type ResultTab = 'plan' | 'wpf' | 'exe';
 
@@ -38,8 +39,8 @@ export function ConvertDtoPage() {
     prefillDtoText,
   } = useConvertDto();
 
-  const wpfText = useMemo(() => (wpfOut ? JSON.stringify(wpfOut, null, 2) : '{}'), [wpfOut]);
-  const exeText = useMemo(() => (exeOut ? JSON.stringify(exeOut, null, 2) : '{}'), [exeOut]);
+  const wpfText = useMemo(() => (wpfOut ? canonicalStringify(wpfOut) : '{}'), [wpfOut]);
+  const exeText = useMemo(() => (exeOut ? canonicalStringify(exeOut) : '{}'), [exeOut]);
   const wpfRows = useMemo(() => diffTexts(baseWpfText, wpfText), [baseWpfText, wpfText]);
   const exeRows = useMemo(() => diffTexts(baseExeText, exeText), [baseExeText, exeText]);
 

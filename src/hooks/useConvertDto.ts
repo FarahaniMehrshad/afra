@@ -7,9 +7,23 @@ import { replayDerivedChanges } from '@/services/dto.deriveReplay';
 import { buildDtoDiffPlan } from '@/services/dto.diffPlan';
 import { buildImpactDtoFromStep } from '@/services/impactDto.service';
 import { computeUiFieldImpact, mergeAcrossVariants } from '@/services/impact.service';
+import { canonicalStringify } from '@/services/jsonCanonical.util';
 import type { OperationPlan } from '@/types/convert';
-import type { UiFieldEntry } from '@/types/impact';
+import type { ImpactDerivedCategory, UiFieldEntry } from '@/types/impact';
 import type { JourneyStep } from '@/types/journey';
+
+/**
+ * Same replay surface as the Testing harness: widen derived evidence so
+ * ids/timestamps/env fields can be planted on new elements, while entry
+ * seeds still respect the user's hideNoise preference.
+ */
+const REPLAY_CATEGORIES: readonly ImpactDerivedCategory[] = [
+  'derived',
+  'random-id',
+  'timestamp',
+  'environment',
+  'unknown',
+];
 
 interface UseConvertDtoResult {
   baseStep: JourneyStep | null;
@@ -60,8 +74,10 @@ export function useConvertDto(): UseConvertDtoResult {
     const baseStep = bundle.steps[selectedIdx] ?? null;
     const wpfDoc = selectedIdx >= 0 ? wpfBuild.docs[selectedIdx]?.obj ?? null : null;
     const exeDoc = selectedIdx >= 0 ? exeBuild.docs[selectedIdx]?.obj ?? null : null;
-    const baseWpfText = selectedIdx >= 0 ? wpfBuild.docs[selectedIdx]?.text ?? '' : '';
-    const baseExeText = selectedIdx >= 0 ? exeBuild.docs[selectedIdx]?.text ?? '' : '';
+    // Canonical form so the UI diff is structural, not key-order / indent noise
+    // against the raw on-disk text.
+    const baseWpfText = wpfDoc ? canonicalStringify(wpfDoc) : '';
+    const baseExeText = exeDoc ? canonicalStringify(exeDoc) : '';
 
     const wpfEntries =
       verdicts.size === 0
@@ -72,8 +88,9 @@ export function useConvertDto(): UseConvertDtoResult {
             verdicts,
             steps: bundle.steps,
             hideNoise,
-            includeCategories: ['derived'],
-            includeUnclassified: false,
+            includeCategories: REPLAY_CATEGORIES,
+            includeUnclassified: true,
+            derivedHideNoise: false,
           });
     const exeEntries =
       verdicts.size === 0
@@ -84,8 +101,9 @@ export function useConvertDto(): UseConvertDtoResult {
             verdicts,
             steps: bundle.steps,
             hideNoise,
-            includeCategories: ['derived'],
-            includeUnclassified: false,
+            includeCategories: REPLAY_CATEGORIES,
+            includeUnclassified: true,
+            derivedHideNoise: false,
           });
     const acrossEntries = mergeAcrossVariants(wpfEntries, exeEntries);
     const prefillDto = buildImpactDtoFromStep(acrossEntries, wpfDoc, exeDoc, {
@@ -142,6 +160,9 @@ export function useConvertDto(): UseConvertDtoResult {
       wpfEntries,
       exeEntries,
       acrossEntries,
+      // Cap history at the selected base step. Without this, later-journey
+      // derived modifies leak onto an identity prefill and rewrite the doc.
+      maxStep: selectedIdx,
     });
     const applied = applyOperationPlan({
       plan,

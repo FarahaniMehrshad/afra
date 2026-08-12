@@ -8,6 +8,7 @@ import { buildDtoDiffPlan } from '@/services/dto.diffPlan';
 import { computeUiFieldImpact, mergeAcrossVariants } from '@/services/impact.service';
 import { buildImpactDtoFromStep } from '@/services/impactDto.service';
 import { diffTexts } from '@/services/diff.service';
+import { canonicalStringify } from '@/services/jsonCanonical.util';
 import type { DiffRow } from '@/types/diff';
 import type { OperationPlan } from '@/types/convert';
 import type { ImpactDerivedCategory } from '@/types/impact';
@@ -266,25 +267,6 @@ function countDiffs(rows: DiffRow[]): number {
   let n = 0;
   for (const row of rows) if (row.k !== '=') n++;
   return n;
-}
-
-/**
- * Stable, key-sorted stringify so that a "structurally equal but key-order
- * different" document doesn't produce spurious line-level diffs.
- */
-function canonicalStringify(value: unknown): string {
-  return JSON.stringify(sortDeep(value), null, 2);
-}
-
-function sortDeep(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sortDeep);
-  if (value && typeof value === 'object') {
-    const keys = Object.keys(value as Record<string, unknown>).sort();
-    const out: Record<string, unknown> = {};
-    for (const k of keys) out[k] = sortDeep((value as Record<string, unknown>)[k]);
-    return out;
-  }
-  return value;
 }
 
 const GUID_RX = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g;
