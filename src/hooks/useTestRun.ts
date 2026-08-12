@@ -159,9 +159,12 @@ export function useTestRun(): TestRunResult {
       maxStep: baseIdx + 1,
     });
     const applied = applyOperationPlan({ plan, wpfDoc: baseWpf, exeDoc: baseExe });
+    // Replay mutates its input docs in place. Clone so postApply probes stay
+    // truthful and we never double-apply derived ops onto the applier output
+    // snapshot.
     const replayed = replayDerivedChanges({
-      wpfDoc: applied.wpf.doc,
-      exeDoc: applied.exe.doc,
+      wpfDoc: structuredClone(applied.wpf.doc),
+      exeDoc: structuredClone(applied.exe.doc),
       wpfFields: applied.wpf.fields,
       exeFields: applied.exe.fields,
       wpfElements: applied.wpf.elements,
@@ -516,6 +519,7 @@ function logTestRun(input: LogInput): void {
       elementOps: input.plan.wpf.elements.map((op) => ({
         kind: op.kind,
         parent: op.parentArrayPath,
+        mintedIndex: op.mintedIndex ?? null,
         template: op.templateEntry.canonical,
       })),
       fieldOps: input.plan.wpf.fields.map((op) => ({
@@ -532,6 +536,7 @@ function logTestRun(input: LogInput): void {
       elementOps: input.plan.exe.elements.map((op) => ({
         kind: op.kind,
         parent: op.parentArrayPath,
+        mintedIndex: op.mintedIndex ?? null,
         template: op.templateEntry.canonical,
       })),
       fieldOps: input.plan.exe.fields.map((op) => ({

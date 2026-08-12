@@ -1,4 +1,4 @@
-import { deleteAtAbsolutePath, setAtAbsolutePath } from '@/services/dto.applyPlan';
+import { deleteAtAbsolutePath, getAtAbsolutePath, setAtAbsolutePath } from '@/services/dto.applyPlan';
 import { canonicalizePath } from '@/services/impact.service';
 import { toRelativeSegments } from '@/services/impactDto.paths';
 import type { ElementOp, FieldOp } from '@/types/convert';
@@ -87,6 +87,13 @@ function replayForVariant(
   let applied = 0;
 
   for (const group of groups) {
+    // Element REMOVE already spliced the whole subtree out during applyPlan.
+    // Replaying historical derived-removes onto `elementParent/elementIndex`
+    // now targets whatever SHIFTED into that slot (e.g. delete AreaKm2 at
+    // index 2 → Active slides into 2 → derived remove wipes Active). Skip
+    // remove-kind groups entirely; the splice is the source of truth.
+    if (group.kind === 'remove') continue;
+
     const entryRel = toRelativeSegments(group.entry.canonical);
     const arrAt = lastArrayIndex(entryRel);
     if (arrAt < 0) continue;
@@ -128,6 +135,15 @@ function replayForVariant(
         warnings.push(variant + ': skipped derived value (non-JSON literal) at ' + derived.path);
         continue;
       }
+
+      // Modify-kind replay must not invent leaves the current doc lacks.
+      // History still records MethodCommandId/PluginId as derived of older
+      // parameter edits, but later journey steps dropped those keys — planting
+      // them makes EXE diverge (steps 15→18) while WPF stays clean.
+      if (group.kind === 'modify' && getAtAbsolutePath(doc, targetPath) === undefined) {
+        continue;
+      }
+
       const ok = setAtAbsolutePath(doc, targetPath, value);
       if (ok) applied++;
     }

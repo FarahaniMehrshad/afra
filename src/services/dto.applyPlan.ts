@@ -71,6 +71,11 @@ function applyVariantPlan(baseDoc: unknown, elements: ElementOp[], fields: Field
     .sort((a, b) => (b.mintedIndex ?? -1) - (a.mintedIndex ?? -1));
   const addElements = elements.filter((op) => op.kind === 'add');
 
+  // Deduplicate identical (parent, index) removes. A second splice at the
+  // same index deletes whatever slid into the hole (Active after AreaKm2).
+  // Multiple DISTINCT indices on one parent (multi-row delete) are still OK;
+  // we sort descending so higher indices are removed first.
+  const seenRemoves = new Set<string>();
   for (const op of removeElements) {
     const parent = getAtAbsolutePath(doc, op.parentArrayPath);
     if (!Array.isArray(parent)) {
@@ -82,8 +87,11 @@ function applyVariantPlan(baseDoc: unknown, elements: ElementOp[], fields: Field
       continue;
     }
     const idx = Number(op.mintedIndex);
+    const key = op.parentArrayPath + '\u0000' + idx;
+    if (seenRemoves.has(key)) continue;
     if (idx < 0 || idx >= parent.length) continue;
     parent.splice(idx, 1);
+    seenRemoves.add(key);
     appliedElements.push({ ...op, mintedIndex: idx });
   }
 

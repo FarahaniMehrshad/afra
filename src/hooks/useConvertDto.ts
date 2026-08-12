@@ -149,14 +149,16 @@ export function useConvertDto(): UseConvertDtoResult {
       exeDoc,
     });
     const replayed = replayDerivedChanges({
-      wpfDoc: applied.wpf.doc,
-      exeDoc: applied.exe.doc,
+      wpfDoc: structuredClone(applied.wpf.doc),
+      exeDoc: structuredClone(applied.exe.doc),
       wpfFields: applied.wpf.fields,
       exeFields: applied.exe.fields,
       wpfElements: applied.wpf.elements,
       exeElements: applied.exe.elements,
       wpfEntries,
       exeEntries,
+      wpfWrittenPaths: applied.wpf.writtenPaths,
+      exeWrittenPaths: applied.exe.writtenPaths,
     });
 
     return {

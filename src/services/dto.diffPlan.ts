@@ -8,6 +8,7 @@ import {
   setConcrete,
   toRelativeConcreteSegments,
   toRelativeSegments,
+  type LeafPath,
 } from '@/services/impactDto.paths';
 
 interface BuildDtoDiffPlanInput {
@@ -45,6 +46,8 @@ interface ElementBucket {
   parentAbs: string[];
   elementRel: string[];
   indexSeg: string;
+  /** Pre-alignment DTO index, used to read `dtoElement` after path rewrite. */
+  dtoSourceIndex?: string;
   templateEntry: UiFieldEntry;
   fieldIndexes: number[];
   states: Array<{ dtoPresent: boolean; basePresent: boolean }>;
@@ -91,14 +94,19 @@ export function buildDtoDiffPlan(input: BuildDtoDiffPlanInput): OperationPlan {
     acrossEntries: input.acrossEntries,
   });
 
+  // Reconcile BEFORE fanout. Otherwise a position-paired REMOVE@3 seed
+  // fans onto every sibling as REMOVE@3, and even after later reconcile the
+  // field-level MODIFY leftovers (AreaKm2→Active at index 2) still Frankenstein
+  // the survivor that slid into that slot.
+  reconcileSiblingRemoves(wpf, bridge);
+  reconcileSiblingRemoves(exe, bridge);
+
   // Element REMOVEs need the same cross-variant fanout that ADDs get.
   // Without it, deleting a row/column in WPF removes only the WPF entry;
   // EXE's mirror keeps the stale element and every downstream leaf drifts
   // (step 12→13 leaves EXE Rows[2] with the Isfahan row still populated).
-  // We reuse the same rep→sibling bridge as ADDs and translate the seed
-  // index onto every sibling's outer array — element ordering is assumed
-  // to be structurally aligned between merge:across siblings, which is the
-  // same assumption `fanoutModifies` already relies on.
+  // Fan out only the reconciled seeds so a single authoritative index
+  // propagates.
   const seedRemoves = [...wpf.elements, ...exe.elements].filter((op) => op.kind === 'remove');
   fanoutRemoves({
     seedRemoves,
@@ -116,6 +124,19 @@ export function buildDtoDiffPlan(input: BuildDtoDiffPlanInput): OperationPlan {
     targetEntries: input.exeEntries,
     bridge,
   });
+  // Fanout may reintroduce conflicting indices from other variants — collapse
+  // again so each parent keeps one remove.
+  reconcileSiblingRemoves(wpf, bridge);
+  reconcileSiblingRemoves(exe, bridge);
+
+  // Drop field ops that target an index we're about to splice out (or any
+  // higher index on that same parent). Post-splice those paths either hit the
+  // shifted survivor (Frankenstein) or create phantom slots via setAtAbsolutePath.
+  // Row-cell paths under Table/Rows are kept — column delete still needs
+  // per-cell truncate/shift there, and Rows is never an element-REMOVE parent
+  // for column deletes.
+  stripFieldOpsOnRemovedElements(wpf);
+  stripFieldOpsOnRemovedElements(exe);
 
   // MODIFY field ops on a merge:across rep canonical (e.g. renaming
   // `InputFields.Title` from "City" to "CityName") must project the new value
@@ -212,6 +233,11 @@ export function buildDtoDiffPlan(input: BuildDtoDiffPlanInput): OperationPlan {
     maxStep: input.maxStep,
   });
 
+  // Fanout / carryover may have re-added field ops under removed indices —
+  // strip once more so the applier never Frankenstein-writes onto survivors.
+  stripFieldOpsOnRemovedElements(wpf);
+  stripFieldOpsOnRemovedElements(exe);
+
   wpf.fields.sort(
     (a, b) => rankKind(a.kind) - rankKind(b.kind) || a.concretePath.localeCompare(b.concretePath),
   );
@@ -242,6 +268,7 @@ export function buildDtoDiffPlan(input: BuildDtoDiffPlanInput): OperationPlan {
           wpfElements: wpf.elements.map((op) => ({
             kind: op.kind,
             parent: op.parentArrayPath,
+            mintedIndex: op.mintedIndex ?? null,
             templateCanonical: op.templateEntry.canonical,
             dtoElementKeys:
               op.dtoElement && typeof op.dtoElement === 'object'
@@ -251,6 +278,7 @@ export function buildDtoDiffPlan(input: BuildDtoDiffPlanInput): OperationPlan {
           exeElements: exe.elements.map((op) => ({
             kind: op.kind,
             parent: op.parentArrayPath,
+            mintedIndex: op.mintedIndex ?? null,
             templateCanonical: op.templateEntry.canonical,
             dtoElementKeys:
               op.dtoElement && typeof op.dtoElement === 'object'
@@ -292,6 +320,7 @@ function buildVariantPlan(
   const dtoLeaves = flattenLeaves(dto);
   const baseLeaves = flattenBaseLeaves(baseDoc);
   const elementBuckets = new Map<string, ElementBucket>();
+  const scopeAlignmentCache = new Map<string, Map<number, number> | null>();
 
   if (!dto || typeof dto !== 'object') {
     warnings.push(variant + ': DTO root is not an object; no operations produced.');
@@ -319,8 +348,30 @@ function buildVariantPlan(
     // evidence for this canonical.
     const entryPrefix = deriveCanonicalAbsPrefix(baseHits) ?? basePrefix;
 
-    const dtoByKey = new Map<string, { segs: string[]; value: unknown }>();
-    for (const hit of dtoHits) dtoByKey.set(pathKey(hit.segs), hit);
+    // Identity-preserving element alignment. Without it, `dto[i]` always
+    // pairs with `base[i]` — so "delete AreaKm2 in the middle" (step
+    // 13→14) reads as "MODIFY col 2 AreaKm2→Active + REMOVE col 3" and
+    // col 2 ends up a Frankenstein (Active title/type on top of stale
+    // AreaKm2 Id/ColumnName/HasLength/Order). We align first by exact
+    // element signature match, then by fuzzy overlap for renames — see
+    // {@link computeElementAlignment}. Alignment is per (entryPrefix +
+    // scope) so different plugin instances (Plugins[0] vs Plugins[1])
+    // and different scopes (InputFields vs Columns) are independent.
+    const dtoToAligned = getOrComputeAlignment(
+      scopeAlignmentCache,
+      dto,
+      baseDoc,
+      entryPrefix,
+      canonRel,
+      dtoLeaves,
+      baseLeaves,
+    );
+
+    const dtoByKey = new Map<string, { segs: string[]; value: unknown; originalSegs: string[] }>();
+    for (const hit of dtoHits) {
+      const segs = dtoToAligned ? rewriteAlignedIndex(hit.segs, canonRel, dtoToAligned) : hit.segs;
+      dtoByKey.set(pathKey(segs), { segs, value: hit.value, originalSegs: hit.segs });
+    }
 
     const baseByKey = new Map<string, BaseLeaf>();
     for (const hit of baseHits) baseByKey.set(pathKey(hit.relSegs), hit);
@@ -341,6 +392,7 @@ function buildVariantPlan(
       const relSegs = dtoHit?.segs ?? baseHit?.relSegs ?? [];
       const absSegs = baseHit?.absSegs ?? [...entryPrefix, ...relSegs];
       const owner = owningElement(canonRel, relSegs);
+      const dtoOwner = dtoHit ? owningElement(canonRel, dtoHit.originalSegs) : null;
       const opIdx = fields.length;
 
       fields.push({
@@ -361,12 +413,14 @@ function buildVariantPlan(
         if (prev) {
           prev.states.push({ dtoPresent, basePresent });
           prev.fieldIndexes.push(opIdx);
+          if (!prev.dtoSourceIndex && dtoOwner) prev.dtoSourceIndex = dtoOwner.indexSeg;
         } else {
           elementBuckets.set(bucketKey, {
             parentRel: owner.parentRel,
             parentAbs: [...entryPrefix, ...owner.parentRel],
             elementRel: owner.elementRel,
             indexSeg: owner.indexSeg,
+            dtoSourceIndex: dtoOwner?.indexSeg,
             templateEntry: entry,
             fieldIndexes: [opIdx],
             states: [{ dtoPresent, basePresent }],
@@ -405,7 +459,14 @@ function buildVariantPlan(
     }
 
     const indexNum = /^\d+$/.test(bucket.indexSeg) ? Number(bucket.indexSeg) : undefined;
-    const dtoElement = allAdd ? getAtPath(dto, bucket.elementRel) : undefined;
+    // After identity rewrite, `elementRel` may point at the aligned base
+    // index (e.g. 3) while the DTO still stores the element at its original
+    // index (e.g. 2). Prefer `dtoSourceIndex` so ADD seeds aren't `{}`.
+    const dtoElementRel =
+      allAdd && bucket.dtoSourceIndex !== undefined
+        ? [...bucket.parentRel, bucket.dtoSourceIndex]
+        : bucket.elementRel;
+    const dtoElement = allAdd ? getAtPath(dto, dtoElementRel) : undefined;
     elements.push({
       variant,
       parentArrayPath: toPath(bucket.parentAbs),
@@ -528,6 +589,306 @@ function sameLeaf(a: unknown, b: unknown): boolean {
 
 function pathKey(segs: string[]): string {
   return segs.join('/');
+}
+
+/**
+ * Locate the last `[]` wildcard in a canonical (relative) segments array,
+ * or `-1` if none. Used both by owningElement and by the alignment layer
+ * to identify the "element index" position within a leaf's concrete
+ * segments.
+ */
+function lastWildcardIndex(canonRel: string[]): number {
+  for (let i = canonRel.length - 1; i >= 0; i--) {
+    if (canonRel[i] === '[]') return i;
+  }
+  return -1;
+}
+
+/**
+ * Retrieve an alignment map from cache or compute+cache it. Alignment is
+ * keyed by `entryPrefix + scope` so different plugin instances and
+ * different scopes (InputFields vs Columns) are aligned independently.
+ * A `null` result means "no alignment needed" — either the scope is
+ * scalar-valued (e.g. Rows/[]) or the DTO/base already share indices.
+ */
+function getOrComputeAlignment(
+  cache: Map<string, Map<number, number> | null>,
+  dto: unknown,
+  baseDoc: unknown,
+  entryPrefix: string[],
+  canonRel: string[],
+  dtoLeaves: LeafPath[],
+  baseLeaves: BaseLeaf[],
+): Map<number, number> | null {
+  const lastWc = lastWildcardIndex(canonRel);
+  if (lastWc < 0) return null;
+  const scopeCanon = canonRel.slice(0, lastWc + 1);
+  const scopeKey = entryPrefix.join('/') + '\u0000' + scopeCanon.join('/');
+  if (cache.has(scopeKey)) return cache.get(scopeKey) ?? null;
+  const alignment = computeElementAlignment(
+    dto,
+    baseDoc,
+    entryPrefix,
+    scopeCanon,
+    dtoLeaves,
+    baseLeaves,
+  );
+  cache.set(scopeKey, alignment);
+  return alignment;
+}
+
+/** Leaf suffixes that identify a column/field element across DTO and base. */
+const IDENTITY_SUFFIXES = [
+  'Title',
+  'Caption',
+  'OutputTitle',
+  'InputTitle',
+  'Name',
+  // Table.Columns DTO often has DataType but not Caption; without this,
+  // identityKeysAgree refuses all pairs (base has Caption, DTO doesn't)
+  // and the scope falls back to position pairing → REMOVE survivor +
+  // fanout REMOVE deleted → double-delete (step 13→14).
+  'DataType',
+];
+
+/**
+ * Compute an identity-preserving alignment `dtoIdx → alignedIdx` for one
+ * element scope (e.g. `.../InputFields/$values/[]`). Alignment strategy:
+ *
+ * 1. Skip scalar/array-valued scopes (element itself is not an object) —
+ *    Rows/[] and DependencyPlugins/[] fall here; position pairing plus
+ *    row-level bucketing already handles them correctly.
+ * 2. Group DTO/base leaves under this scope by element index. Base leaves
+ *    are restricted to `entryPrefix` so Plugins[0] and Plugins[1] never
+ *    share a bucket.
+ * 3. Pair only when an identity leaf (Title/Caption/OutputTitle/…) matches
+ *    exactly — overlap on `Length:null`/`Scale:null` alone used to score
+ *    0.5 and falsely bind Boolean↔Text, which broke appends and deletes.
+ * 4. Unmatched DTO indices keep their own index when free (append-at-end
+ *    stays identity → no rewrite). Synthetic slots are a last resort when
+ *    the natural dto index is already claimed by a survivor mapping.
+ *
+ * Returns `null` when nothing needed alignment (identity mapping).
+ */
+function computeElementAlignment(
+  dto: unknown,
+  baseDoc: unknown,
+  entryPrefix: string[],
+  scopeCanon: string[],
+  dtoLeaves: LeafPath[],
+  baseLeaves: BaseLeaf[],
+): Map<number, number> | null {
+  // Resolve sample via concrete "0" only when scope has a single trailing
+  // wildcard; nested `[]/[]` (Rows) is scalar-array and must not align.
+  const trailingWildcards = trailingWildcardRun(scopeCanon);
+  if (trailingWildcards !== 1) return null;
+
+  const dtoScopePath = scopeCanon.slice(0, -1).map((s) => (s === '[]' ? '0' : s));
+  const dtoSample = getAtPath(dto, [...dtoScopePath, '0']);
+  const baseSample = getAtPath(baseDoc, [...entryPrefix, ...dtoScopePath, '0']);
+  if (!isPlainObject(dtoSample) && !isPlainObject(baseSample)) return null;
+
+  const dtoElements = groupLeavesUnderScope(
+    dtoLeaves.map((l) => ({ segs: l.segs, value: l.value })),
+    scopeCanon,
+  );
+  // Only base leaves that live under this entry's absolute prefix — otherwise
+  // two plugins that strip to the same relative path would merge indices.
+  const baseElements = groupLeavesUnderScope(
+    baseLeaves
+      .filter((l) => absHasPrefix(l.absSegs, entryPrefix))
+      .map((l) => ({ segs: l.relSegs, value: l.value })),
+    scopeCanon,
+  );
+  if (!dtoElements.size || !baseElements.size) return null;
+
+  const scored: Array<{ dtoIdx: number; baseIdx: number; score: number }> = [];
+  for (const [dtoIdx, dtoLeafList] of dtoElements) {
+    const dtoMap = leafMap(dtoLeafList);
+    for (const [baseIdx, baseLeafList] of baseElements) {
+      const baseMap = leafMap(baseLeafList);
+      if (!identityKeysAgree(dtoMap, baseMap)) continue;
+      const score = dtoOverlapScore(dtoMap, baseMap);
+      if (score > 0) scored.push({ dtoIdx, baseIdx, score });
+    }
+  }
+  scored.sort((a, b) => b.score - a.score || a.dtoIdx - b.dtoIdx || a.baseIdx - b.baseIdx);
+
+  const dtoToAligned = new Map<number, number>();
+  const usedBase = new Set<number>();
+  for (const cand of scored) {
+    // Strict > 0.5 so "half the compact DTO is shared nulls" cannot bind.
+    if (cand.score <= 0.5) break;
+    if (dtoToAligned.has(cand.dtoIdx)) continue;
+    if (usedBase.has(cand.baseIdx)) continue;
+    dtoToAligned.set(cand.dtoIdx, cand.baseIdx);
+    usedBase.add(cand.baseIdx);
+  }
+
+  // Prefer the DTO's own index for leftovers (append-at-end → identity map
+  // → null rewrite). Only mint a synthetic slot when that index is already
+  // claimed by a survivor (insert-before / dense collision).
+  const baseMax = Math.max(-1, ...baseElements.keys());
+  const dtoMax = Math.max(-1, ...dtoElements.keys());
+  let synthetic = Math.max(baseMax, dtoMax) + 1;
+  const dtoIdxs = [...dtoElements.keys()].sort((a, b) => a - b);
+  for (const dtoIdx of dtoIdxs) {
+    if (dtoToAligned.has(dtoIdx)) continue;
+    if (!usedBase.has(dtoIdx)) {
+      dtoToAligned.set(dtoIdx, dtoIdx);
+      usedBase.add(dtoIdx);
+    } else {
+      dtoToAligned.set(dtoIdx, synthetic++);
+    }
+  }
+
+  let identical = true;
+  for (const [d, aligned] of dtoToAligned) {
+    if (d !== aligned) {
+      identical = false;
+      break;
+    }
+  }
+  return identical ? null : dtoToAligned;
+}
+
+function trailingWildcardRun(segs: string[]): number {
+  let n = 0;
+  for (let i = segs.length - 1; i >= 0 && segs[i] === '[]'; i--) n++;
+  return n;
+}
+
+function absHasPrefix(absSegs: string[], prefix: string[]): boolean {
+  if (absSegs.length < prefix.length) return false;
+  for (let i = 0; i < prefix.length; i++) {
+    if (absSegs[i] !== prefix[i]) return false;
+  }
+  return true;
+}
+
+/**
+ * When either side exposes a Title/Caption/OutputTitle-like leaf, require
+ * an exact match on at least one such leaf. Scopes with no identity leaves
+ * (rare) fall through to pure overlap scoring.
+ */
+function identityKeysAgree(dtoMap: Map<string, string>, baseMap: Map<string, string>): boolean {
+  let sawIdentity = false;
+  for (const [k, v] of dtoMap) {
+    if (!isIdentitySuffix(k)) continue;
+    sawIdentity = true;
+    if (baseMap.get(k) === v) return true;
+  }
+  if (!sawIdentity) {
+    for (const k of baseMap.keys()) {
+      if (isIdentitySuffix(k)) {
+        sawIdentity = true;
+        break;
+      }
+    }
+    // Base has identity keys but DTO doesn't (shouldn't happen for column
+    // scopes) — refuse rather than pair on Length/Scale nulls alone.
+    if (sawIdentity) return false;
+    return true;
+  }
+  return false;
+}
+
+function isIdentitySuffix(suffixPath: string): boolean {
+  if (IDENTITY_SUFFIXES.includes(suffixPath)) return true;
+  const parts = suffixPath.split('/');
+  const last = parts[parts.length - 1] ?? '';
+  if (IDENTITY_SUFFIXES.includes(last)) return true;
+  // `BaseDataType/ColumnType/$value`, `Name/ColumnType/$value`, …
+  if (last === '$value' && parts.length >= 2 && parts[parts.length - 2] === 'ColumnType') {
+    return true;
+  }
+  return false;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function groupLeavesUnderScope(
+  leaves: Array<{ segs: string[]; value: unknown }>,
+  scopeCanon: string[],
+): Map<number, Array<{ suffix: string[]; value: unknown }>> {
+  const scopeLen = scopeCanon.length;
+  const result = new Map<number, Array<{ suffix: string[]; value: unknown }>>();
+  for (const l of leaves) {
+    if (l.segs.length <= scopeLen) continue;
+    let matched = true;
+    for (let i = 0; i < scopeLen - 1; i++) {
+      if (scopeCanon[i] === '[]') continue;
+      if (scopeCanon[i] !== l.segs[i]) {
+        matched = false;
+        break;
+      }
+    }
+    if (!matched) continue;
+    const idxStr = l.segs[scopeLen - 1];
+    if (!/^\d+$/.test(idxStr)) continue;
+    const idx = Number(idxStr);
+    const suffix = l.segs.slice(scopeLen);
+    let list = result.get(idx);
+    if (!list) {
+      list = [];
+      result.set(idx, list);
+    }
+    list.push({ suffix, value: l.value });
+  }
+  return result;
+}
+
+function leafMap(list: Array<{ suffix: string[]; value: unknown }>): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const l of list) {
+    let v: string;
+    try {
+      v = JSON.stringify(l.value);
+    } catch {
+      v = String(l.value);
+    }
+    out.set(l.suffix.join('/'), v);
+  }
+  return out;
+}
+
+/**
+ * `matches / dto.size` — DTO-anchored so a compact DTO (no derived fields)
+ * still scores 1.0 against a base element whose extra fields the DTO
+ * doesn't specify.
+ */
+function dtoOverlapScore(dtoMap: Map<string, string>, baseMap: Map<string, string>): number {
+  if (dtoMap.size === 0) return 0;
+  let matches = 0;
+  for (const [k, v] of dtoMap) {
+    if (baseMap.get(k) === v) matches++;
+  }
+  return matches / dtoMap.size;
+}
+
+/**
+ * Replace the concrete index at the scope's `[]` position with the aligned
+ * base index. Leaves the rest of the path untouched, including any inner
+ * wildcards further right — cell-level `Rows/[]/[]` positions are aligned
+ * elsewhere (or not at all when the scope is scalar-array-valued).
+ */
+function rewriteAlignedIndex(
+  segs: string[],
+  canonRel: string[],
+  dtoToAligned: Map<number, number>,
+): string[] {
+  const wcPos = lastWildcardIndex(canonRel);
+  if (wcPos < 0 || wcPos >= segs.length) return segs;
+  const idxStr = segs[wcPos];
+  if (!/^\d+$/.test(idxStr)) return segs;
+  const idx = Number(idxStr);
+  const aligned = dtoToAligned.get(idx);
+  if (aligned === undefined || aligned === idx) return segs;
+  const out = segs.slice();
+  out[wcPos] = String(aligned);
+  return out;
 }
 
 function toPath(segs: string[]): string {
@@ -869,13 +1230,6 @@ function trailingConsecutiveWildcards(
   return out;
 }
 
-function lastWildcardIndex(canonSegs: string[]): number {
-  for (let i = canonSegs.length - 1; i >= 0; i--) {
-    if (canonSegs[i] === '[]') return i;
-  }
-  return -1;
-}
-
 interface HistoryCarryoverInput {
   variantEntries: UiFieldEntry[];
   targetVariant: Variant;
@@ -1199,6 +1553,125 @@ function fanoutAdds(input: FanoutInput): void {
       }
     }
   }
+}
+
+/**
+ * Prefer remove seeds whose template carries a true identity leaf
+ * (InputFields.Title > OutputTitle > Caption > everything else). Used to
+ * break ties when sibling scopes disagree on which index to delete.
+ */
+function removeAuthorityScore(op: ElementOp): number {
+  const c = op.templateEntry.canonical;
+  if (c.includes('InputFields') && c.includes('/Title')) return 100;
+  if (c.includes('/Title')) return 90;
+  if (c.includes('OutputTitle')) return 80;
+  if (c.includes('Caption')) return 70;
+  if (c.includes('ColumnType')) return 40;
+  return 0;
+}
+
+/**
+ * After element REMOVEs are finalized, drop field ops whose first index
+ * under the same parent is `>=` any removed index. Those paths were planned
+ * against pre-splice positions: writing them post-splice either mutates the
+ * survivor that slid down (Frankenstein AreaKm2→Active) or creates a phantom
+ * slot past the end of the array.
+ *
+ * `Table/Rows` cell ops are exempt — column deletion expresses itself there
+ * as per-cell field add/remove, not as a Rows element REMOVE.
+ */
+function stripFieldOpsOnRemovedElements(plan: VariantOperationPlan): void {
+  const removeIdxByParent = new Map<string, number[]>();
+  for (const op of plan.elements) {
+    if (op.kind !== 'remove' || !Number.isInteger(op.mintedIndex)) continue;
+    if (op.parentArrayPath.includes('/Table/Rows')) continue;
+    const list = removeIdxByParent.get(op.parentArrayPath) ?? [];
+    list.push(op.mintedIndex as number);
+    removeIdxByParent.set(op.parentArrayPath, list);
+  }
+  if (!removeIdxByParent.size) return;
+
+  plan.fields = plan.fields.filter((f) => {
+    for (const [parent, indices] of removeIdxByParent) {
+      const prefix = parent + '/';
+      if (!f.concretePath.startsWith(prefix)) continue;
+      const first = f.concretePath.slice(prefix.length).split('/')[0];
+      if (!/^\d+$/.test(first)) continue;
+      const idx = Number(first);
+      if (indices.some((ri) => idx >= ri)) return false;
+    }
+    return true;
+  });
+}
+
+/**
+ * When identity alignment and position pairing disagree inside the same
+ * merge:across column cluster, multiple REMOVE ops land on sibling parents
+ * with different `mintedIndex` values. Applying both splices deletes the
+ * target AND the survivor (Active). Force every involved parent onto the
+ * highest-authority index and drop duplicates.
+ */
+function reconcileSiblingRemoves(plan: VariantOperationPlan, bridge: SiblingBridge): void {
+  const removeOps = plan.elements.filter(
+    (op) => op.kind === 'remove' && Number.isInteger(op.mintedIndex),
+  );
+  if (removeOps.length < 2) return;
+
+  type Choice = { op: ElementOp; score: number; scope: string };
+  const bestByParent = new Map<string, Choice>();
+
+  for (const op of removeOps) {
+    const scope = elementScopeOf(op.templateEntry.canonical);
+    if (!scope) continue;
+    const score = removeAuthorityScore(op);
+    const prev = bestByParent.get(op.parentArrayPath);
+    if (
+      !prev ||
+      score > prev.score ||
+      (score === prev.score && (op.mintedIndex as number) < (prev.op.mintedIndex as number))
+    ) {
+      bestByParent.set(op.parentArrayPath, { op, score, scope });
+    }
+  }
+
+  const seenBucket = new Set<string>();
+  for (const [, bucket] of bridge) {
+    const scopes = [...new Set([...bucket.wpf, ...bucket.exe])].sort();
+    const bucketKey = scopes.join('\u0000');
+    if (seenBucket.has(bucketKey)) continue;
+    seenBucket.add(bucketKey);
+
+    const involved = [...bestByParent.entries()].filter(([, c]) => scopes.includes(c.scope));
+    if (involved.length < 2) continue;
+
+    const indices = new Set(involved.map(([, c]) => c.op.mintedIndex));
+    if (indices.size <= 1) continue;
+
+    involved.sort(
+      (a, b) =>
+        b[1].score - a[1].score ||
+        (a[1].op.mintedIndex as number) - (b[1].op.mintedIndex as number),
+    );
+    const authIdx = involved[0][1].op.mintedIndex as number;
+    for (const [, choice] of involved) {
+      choice.op.mintedIndex = authIdx;
+    }
+  }
+
+  // One REMOVE per parentArrayPath — keep the authority choice (now with
+  // reconciled mintedIndex) and drop the rest.
+  const keptParent = new Set<string>();
+  const keepOps = new Set<ElementOp>();
+  for (const [, choice] of bestByParent) {
+    if (keptParent.has(choice.op.parentArrayPath)) continue;
+    keptParent.add(choice.op.parentArrayPath);
+    keepOps.add(choice.op);
+  }
+  plan.elements = plan.elements.filter((op) => {
+    if (op.kind !== 'remove') return true;
+    if (!bestByParent.has(op.parentArrayPath)) return true;
+    return keepOps.has(op);
+  });
 }
 
 interface FanoutRemoveInput {
