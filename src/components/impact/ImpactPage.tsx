@@ -6,6 +6,7 @@ import type { Variant } from '@/types/journey';
 import { useUiFieldImpact } from '@/hooks/useUiFieldImpact';
 import { ImpactToolbar } from './ImpactToolbar';
 import { ImpactColumn } from './ImpactColumn';
+import { ImpactDtoPanel } from './ImpactDtoPanel';
 
 /** Field-first map of UI events and same-step derived changes. */
 export function ImpactPage() {
@@ -108,13 +109,18 @@ export function ImpactPage() {
       <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
         {mode === 'across' ? (
           fcombined && (
-            <ImpactColumn
-              impact={fcombined}
-              kinds={impactKinds}
-              onPathClick={(path, variant) =>
-                jumpToPath(path, variant, setVariant, selectPath, setPage)
-              }
-            />
+            <>
+              <div style={{ flex: 1, minWidth: 0, display: 'flex' }}>
+                <ImpactColumn
+                  impact={fcombined}
+                  kinds={impactKinds}
+                  onPathClick={(path, variant) =>
+                    jumpToPath(path, variant, setVariant, selectPath, setPage)
+                  }
+                />
+              </div>
+              <ImpactDtoPanel entries={fcombined.entries} />
+            </>
           )
         ) : (
           <>
